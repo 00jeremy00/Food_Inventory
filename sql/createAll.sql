@@ -30,3 +30,45 @@ CREATE TABLE IF NOT EXISTS Product(
     FOREIGN KEY (vendor_num) REFERENCES Vendor(vendor_num),
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num)
 );
+
+CREATE TABLE IF NOT EXISTS Invoice(
+	invoice_num VARCHAR(20) PRIMARY KEY,
+    invoice_date DATE NOT NULL,
+    vendor VARCHAR(20),
+    FOREIGN KEY (vendor) REFERENCES Vendor(vendor_num)
+);
+
+CREATE TABLE IF NOT EXISTS InvoiceLine(
+	invoice_num VARCHAR(20) NOT NULL,
+    vendor_pnum VARCHAR(64) NOT NULL,
+    quantity INT NOT NULL,
+    PRIMARY KEY (invoice_num, vendor_pnum),
+    FOREIGN KEY (invoice_num) REFERENCES Invoice (invoice_num),
+    FOREIGN KEY (vendor_pnum) REFERENCES Product (vendor_pnum)
+);
+
+CREATE TABLE IF NOT EXISTS Inventory(
+	internal_num VARCHAR(20) PRIMARY KEY,
+    quantity INT NOT NULL,
+    FOREIGN KEY (internal_num) REFERENCES Item(internal_num)
+);
+
+CREATE TABLE IF NOT EXISTS Managers(
+	manager_num VARCHAR(20) PRIMARY KEY,
+    manager_name VARCHAR(64) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Transac
+
+CREATE TABLE IF NOT EXISTS InventoryTransaction(
+	transaction_num VARCHAR(64) PRIMARY KEY,
+    internal_num VARCHAR(20) NOT NULL,
+    transaction_type VARCHAR(20) NOT NULL,
+    quantity DECIMAL(10,2) NOT NULL,
+    transaction_date DATETIME NOT NULL,
+    manager VARCHAR(20) NOT NULL,
+    invoice_num VARCHAR(20),
+	FOREIGN KEY (invoice_num) REFERENCES Invoice(invoice_num),
+    FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
+    FOREIGN KEY (manager) REFERENCES Managers(manager_num)
+);
