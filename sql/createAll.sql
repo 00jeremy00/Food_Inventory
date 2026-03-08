@@ -1,4 +1,4 @@
-CREATE DATABASE IF NOT EXISTS FOOD;
+
 USE FOOD;
 
 CREATE TABLE IF NOT EXISTS Category(
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS Product(
 CREATE TABLE IF NOT EXISTS Invoice(
 	invoice_num VARCHAR(20) PRIMARY KEY,
     invoice_date DATE NOT NULL,
-    vendor VARCHAR(20),
+    vendor VARCHAR(20) NOT NULL,
     FOREIGN KEY (vendor) REFERENCES Vendor(vendor_num)
 );
 
@@ -58,13 +58,11 @@ CREATE TABLE IF NOT EXISTS Managers(
     manager_name VARCHAR(64) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS Transac
-
 CREATE TABLE IF NOT EXISTS InventoryTransaction(
 	transaction_num VARCHAR(64) PRIMARY KEY,
     internal_num VARCHAR(20) NOT NULL,
-    transaction_type VARCHAR(20) NOT NULL,
-    quantity DECIMAL(10,2) NOT NULL,
+	transaction_type ENUM('RECEIVE', 'USE', 'WASTE', 'ADJUST') NOT NULL,
+    quantity DECIMAL(10,3) NOT NULL,
     transaction_date DATETIME NOT NULL,
     manager VARCHAR(20) NOT NULL,
     invoice_num VARCHAR(20),
@@ -72,3 +70,4 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
     FOREIGN KEY (manager) REFERENCES Managers(manager_num)
 );
+SHOW TABLES;

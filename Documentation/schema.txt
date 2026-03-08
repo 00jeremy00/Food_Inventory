@@ -1,5 +1,5 @@
 Product:
-    rvendor_pnum(PK), internal_num(FK), vendor_name, vendor_num(FK), price, purchase_unit
+    rvendor_pnum(PK), internal_num(FK), vendor_name, vendor0_num(FK), price, purchase_unit
 
 Item:
     internal_num(PK), internal_name, category, internal_unit
