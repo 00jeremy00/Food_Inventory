@@ -1,0 +1,24 @@
+Product:
+    retailer_pnum(PK), internal_num(FK), vendor_name, retailer_num(FK), price, purchase_unit
+
+Item:
+    internal_num(PK), internal_name, category, internal_unit
+
+Retailer:
+    Retailer_num(PK), name, phone_number, email, website
+
+Invoice:
+    Invoice_num(PK), date, retailer_num(FK)
+
+InvoiceLine:
+    (Invoice_num, retailer_pnum(FK))(PK), quantity
+
+Inventory: 
+    internal_num(FK)(PK), quantity
+
+Managers:
+    Manager_ID(PK), manager_name
+
+Inventory_transaction:
+    transaction_num(PK), internal_num(FK), quantity, date, Type, Manager_ID(FK), invoice_num(FK)
+
