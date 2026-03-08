@@ -55,10 +55,10 @@ Vendor-specific product listings that map to internal items.
 
 Attributes:
 
-* retailer_pnum (PK)
+* vendor_pnum (PK)
 * internal_num (FK)
 * vendor_name
-* retailer_num (FK)
+* vendor_num (FK)
 * price
 * purchase_unit
 
@@ -66,13 +66,13 @@ This table allows multiple suppliers to provide the same ingredient.
 
 ---
 
-**Retailer**
+**Vendor**
 
 Stores information about food suppliers.
 
 Attributes:
 
-* retailer_num (PK)
+* vendor_num (PK)
 * name
 * phone_number
 * email
@@ -90,7 +90,7 @@ Attributes:
 
 * invoice_num (PK)
 * date
-* retailer_num (FK)
+* vendor_num (FK)
 
 ---
 
@@ -100,7 +100,7 @@ Records individual products purchased on each invoice.
 
 Attributes:
 
-* (invoice_num, retailer_pnum) (PK)
+* (invoice_num, vendor_pnum) (PK)
 * quantity
 
 ---

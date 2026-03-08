@@ -1,17 +1,17 @@
 Product:
-    retailer_pnum(PK), internal_num(FK), vendor_name, retailer_num(FK), price, purchase_unit
+    rvendor_pnum(PK), internal_num(FK), vendor_name, vendor_num(FK), price, purchase_unit
 
 Item:
     internal_num(PK), internal_name, category, internal_unit
 
-Retailer:
-    Retailer_num(PK), name, phone_number, email, website
+Vendor:
+    vendor_num(PK), name, phone_number, email, website
 
 Invoice:
-    Invoice_num(PK), date, retailer_num(FK)
+    Invoice_num(PK), date, vendor_num(FK)
 
 InvoiceLine:
-    (Invoice_num, retailer_pnum(FK))(PK), quantity
+    (Invoice_num, vendor_pnum(FK))(PK), quantity
 
 Inventory: 
     internal_num(FK)(PK), quantity
