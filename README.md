@@ -27,6 +27,12 @@ For example, multiple suppliers may sell chicken breast using different product 
 
 ### Core Entities
 
+**Category**
+Represents the classification of an internal inventory item. Categories group similar items together and allow the system to enforce consistent labeling across the inventory database.
+
+Attributes
+ * category_name (PK) for example frozen, refrigerated, paper_product, dry_food
+
 **Item**
 
 Internal inventory items used by the restaurant.
