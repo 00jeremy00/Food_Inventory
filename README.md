@@ -61,6 +61,7 @@ Attributes:
 * vendor_num (FK)
 * price
 * purchase_unit
+* conversion_unit
 
 This table allows multiple suppliers to provide the same ingredient.
 

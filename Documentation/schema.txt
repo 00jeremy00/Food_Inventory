@@ -1,5 +1,5 @@
 Product:
-    rvendor_pnum(PK), internal_num(FK), vendor_name, vendor0_num(FK), price, purchase_unit
+    rvendor_pnum(PK), internal_num(FK), vendor_name, vendor0_num(FK), price, purchase_unit, conversion_unit
 
 Item:
     internal_num(PK), internal_name, category, internal_unit
@@ -19,6 +19,6 @@ Inventory:
 Managers:
     Manager_ID(PK), manager_name
 
-Inventory_transaction:
+InventoryTransaction:
     transaction_num(PK), internal_num(FK), quantity, date, Type, Manager_ID(FK), invoice_num(FK)
 
