@@ -7,8 +7,16 @@ CREATE TRIGGER prevent_negative_inventory
 BEFORE INSERT ON InventoryTransaction
 FOR EACH ROW
 BEGIN
-
     DECLARE current_qty DECIMAL(10,3);
+	IF NEW.manager IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Must have manager credentials';
+	ELSEIF NEW.transaction_type IN ('WASTE', 'ADJUST')
+    AND NEW.reason IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Must have reason for waste or adjustment';
+		
+	END IF;
 
     SELECT quantity
     INTO current_qty
@@ -52,9 +60,13 @@ BEGIN
             SET quantity = quantity - abs(NEW.quantity)
 			WHERE internal_num = NEW.internal_num;
 		END IF;
-	ELSE
+	ELSEIF NEW.transaction_type IN ('ADJUST', 'RECEIVE') THEN
 		INSERT INTO Inventory(internal_num, quantity)
         VALUES (NEW.internal_num, abs(NEW.quantity));
+	
+    ELSE 
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT "Cannot use or waste product not in inventory";
 	END IF;
 END $$
 DELIMITER ;

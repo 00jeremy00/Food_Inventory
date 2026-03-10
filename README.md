@@ -143,6 +143,7 @@ Attributes:
 * type
 * manager_id (FK)
 * invoice_num (FK)
+* reason
 
 Transaction types may include:
 

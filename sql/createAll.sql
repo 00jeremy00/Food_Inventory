@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
     transaction_date DATETIME NOT NULL,
     manager VARCHAR(20) NOT NULL,
     invoice_num VARCHAR(20),
+    reason VARCHAR(64),
 	FOREIGN KEY (invoice_num) REFERENCES Invoice(invoice_num),
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
     FOREIGN KEY (manager) REFERENCES Managers(manager_num)
