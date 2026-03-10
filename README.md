@@ -164,3 +164,15 @@ Example process:
 2. Purchased products are recorded in **InvoiceLine**
 3. A corresponding **Inventory_Transaction** is created to increase stock
 4. Inventory consumption, waste, or corrections create
+
+## Inventory Transaction Workflow
+
+The database uses triggers to automatically validate transactions and maintain the current inventory state.
+
+### Workflow
+
+1. An `INSERT` is executed on the `InventoryTransaction` table.
+2. Before the row is inserted, the `prevent_negative_inventory` trigger validates the transaction.
+3. If the transaction violates business rules (e.g., negative inventory or missing reason), the trigger raises an error and the transaction is rejected.
+4. If the transaction is valid, the row is inserted into `InventoryTransaction`.
+5. After insertion, the `update_inventory` trigger updates the `Inventory` table by either adjusting the quantity or creating a new inventory record if one does not yet exist.
