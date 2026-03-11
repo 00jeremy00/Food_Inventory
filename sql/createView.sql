@@ -1,13 +1,16 @@
 CREATE OR REPLACE VIEW ReceiveInfo AS
 SELECT 
-t.transaction_num as 'transaction number',
-t.transaction_type as "transaction type",
-i.internal_num as "item number",
-i.internal_name as 'item',
-t.quantity as 'quantity',
-i.internal_unit as 'unit',
-t.invoice_num as 'invoice number',
-m.manager_name as 'manager'
+t.transaction_num,
+t.transaction_date,
+t.transaction_type,
+i.internal_num,
+i.internal_name,
+t.quantity,
+i.internal_unit ,
+t.invoice_num,
+m.manager_name,
+m.manager_num
+
 FROM Item as i JOIN InventoryTransaction as t
 ON i.internal_num = t.internal_num
 JOIN Managers as m
@@ -17,14 +20,16 @@ WHERE t.transaction_type = 'RECEIVE';
 
 CREATE OR REPLACE VIEW  WasteAdjustInfo AS
 SELECT
-t.transaction_num as 'transaction number',
-t.transaction_type as "transaction type",
-i.internal_num as "item number",
-i.internal_name as 'item',
-t.quantity as 'quantity',
-i.internal_unit as 'unit',
-t.reason as 'reason',
-m.manager_name as 'manager'
+t.transaction_num,
+t.transaction_date,
+t.transaction_type,
+i.internal_num,
+i.internal_name,
+t.quantity,
+i.internal_unit,
+t.reason,
+m.manager_name,
+m.manager_num
 
 FROM Item as i JOIN InventoryTransaction as t
 ON i.internal_num = t.internal_num
