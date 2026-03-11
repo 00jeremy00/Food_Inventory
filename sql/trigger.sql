@@ -66,7 +66,7 @@ BEGIN
 	
     ELSE 
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT "Cannot use or waste product not in inventory";
+        SET MESSAGE_TEXT = "Cannot use or waste product not in inventory";
 	END IF;
 END $$
 DELIMITER ;
