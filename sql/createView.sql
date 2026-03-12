@@ -13,8 +13,8 @@ m.manager_num
 
 FROM Item as i JOIN InventoryTransaction as t
 ON i.internal_num = t.internal_num
-JOIN Managers as m
-ON m.manager_num = t.manager
+JOIN Manager as m
+ON m.manager_num = t.manager_num
 WHERE t.transaction_type = 'RECEIVE';
 
 
@@ -33,7 +33,7 @@ m.manager_num
 
 FROM Item as i JOIN InventoryTransaction as t
 ON i.internal_num = t.internal_num
-JOIN Managers as m
-ON m.manager_num = t.manager
+JOIN Manager as m
+ON m.manager_num = t.manager_num
 WHERE t.transaction_type IN ('ADJUST', 'WASTE');
 

@@ -8,6 +8,30 @@ The database is designed to support operational inventory management while also 
 
 Food service inventory systems are often fragmented or poorly integrated. This project aims to demonstrate how a well-designed relational database can provide clean operational data that supports both day-to-day inventory tracking and predictive analytics.
 
+# Key Features
+• Relational inventory database
+• Vendor product mapping
+• Invoice and purchasing tracking
+• Inventory transaction history
+• Automated inventory updates using triggers
+• Clean dataset for machine learning demand forecasting
+
+# Tech Stack
+• MySQL
+• SQL (Triggers, Views, Stored Procedures)
+• Python (future ML modeling)
+• FastAPI (optional API layer)
+• Git / GitHub
+
+Setup
+1. Create database
+2. Run scripts in order
+createAll.sql
+createView.sql
+storedProcedures.sql
+trigger.sql
+loadSampleData.sql
+
 ## Goals
 
 The primary goals of this project are:
@@ -47,8 +71,6 @@ Attributes:
 Example:
 Chicken Breast, Roma Tomato, Mozzarella Cheese
 
----
-
 **Product**
 
 Vendor-specific product listings that map to internal items.
@@ -60,8 +82,8 @@ Attributes:
 * vendor_name
 * vendor_num (FK)
 * price
-* purchase_unit
-* conversion_unit
+* purchase_unit     - unit in which it is purchased
+* conversion_unit   - coversion factor to translate to internal units
 
 This table allows multiple suppliers to provide the same ingredient.
 
@@ -143,14 +165,15 @@ Attributes:
 * type
 * manager_id (FK)
 * invoice_num (FK)
-* reason
+* reason                - NULL unless WASTE or ADJUST
 
 Transaction types may include:
 
-* RECEIVE
-* USE
-* WASTE
-* ADJUST
+* RECEIVE               - New product coming in
+* USE                   - product getting used such as 100 napkins
+* WASTE                 - wasted product
+* ADJUST                - ajusting the inventory level 
+*ADJUST is the only field where sign matters, others are forced to correspond to adding or removing product.
 
 Positive quantities increase stock while negative quantities decrease stock.
 
@@ -176,3 +199,17 @@ The database uses triggers to automatically validate transactions and maintain t
 3. If the transaction violates business rules (e.g., negative inventory or missing reason), the trigger raises an error and the transaction is rejected.
 4. If the transaction is valid, the row is inserted into `InventoryTransaction`.
 5. After insertion, the `update_inventory` trigger updates the `Inventory` table by either adjusting the quantity or creating a new inventory record if one does not yet exist.
+
+
+# Example Queries
+Examples from queryAll.sql demonstrating analytics queries.
+
+# Future Work
+• Machine learning demand forecasting
+• automated reorder predictions
+• REST API integration
+• dashboard for managers
+
+Author
+Jeremy Dickinson  
+B.S. Computer Science — University of Maryland Baltimore County
