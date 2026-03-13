@@ -33,10 +33,17 @@ CREATE TABLE IF NOT EXISTS Product(
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num)
 );
 
+CREATE TABLE IF NOT EXISTS Manager(
+	manager_num VARCHAR(20) PRIMARY KEY,
+    manager_name VARCHAR(64) NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS Invoice(
 	invoice_num VARCHAR(20) PRIMARY KEY,
     invoice_date DATE NOT NULL,
     vendor_num VARCHAR(6) NOT NULL,
+    approval_status ENUM('APPROVED', 'PENDING', 'DENIED') DEFAULT 'PENDING' NOT NULL,
+    manager_num VARCHAR(20),
     FOREIGN KEY (vendor_num) REFERENCES Vendor(vendor_num)
 );
 
@@ -51,13 +58,8 @@ CREATE TABLE IF NOT EXISTS InvoiceLine(
 
 CREATE TABLE IF NOT EXISTS Inventory(
 	internal_num VARCHAR(20) PRIMARY KEY,
-    quantity DECIMAL(10,3) NOT NULL,
+    quantity DECIMAL(10,3) DEFAULT 0.0 NOT NULL,
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num)
-);
-
-CREATE TABLE IF NOT EXISTS Manager(
-	manager_num VARCHAR(20) PRIMARY KEY,
-    manager_name VARCHAR(64) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS InventoryTransaction(
@@ -66,7 +68,8 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
 	transaction_type ENUM('RECEIVE', 'USE', 'WASTE', 'ADJUST') NOT NULL,
     quantity DECIMAL(10,3) NOT NULL,
     transaction_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    manager_num VARCHAR(20) NOT NULL,
+    manager_num VARCHAR(20),
+    approval_status ENUM('APPROVED', 'PENDING', 'DENIED') DEFAULT 'PENDING' NOT NULL,
     invoice_num VARCHAR(20),
     reason VARCHAR(64),
 	FOREIGN KEY (invoice_num) REFERENCES Invoice(invoice_num),

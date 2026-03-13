@@ -1,86 +1,128 @@
-DROP TRIGGER IF EXISTS prevent_negative_inventory;
+DROP TRIGGER IF EXISTS validate_invoice_update;
+DROP TRIGGER IF EXISTS update_invoice_line;
+DROP TRIGGER IF EXISTS validate_inventory_transaction_update;
 DROP TRIGGER IF EXISTS update_inventory;
+DROP TRIGGER IF EXISTS populate_inventory;
 
 DELIMITER $$
 
-CREATE TRIGGER prevent_negative_inventory
-BEFORE INSERT ON InventoryTransaction
+CREATE TRIGGER populate_inventory
+AFTER INSERT ON Item
 FOR EACH ROW
 BEGIN
-    DECLARE current_qty DECIMAL(10,3);
-	IF NEW.manager_num IS NULL THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Must have manager credentials';
+		INSERT INTO Inventory (internal_num, quantity)
+		VALUES (NEW.internal_num, 0)
+		ON DUPLICATE KEY UPDATE internal_num = internal_num;
+END $$
 
-	ELSEIF NEW.transaction_type IN ('WASTE', 'ADJUST')
-    AND (NEW.reason IS NULL OR TRIM(NEW.reason) = '') THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Must have reason for waste or adjustment';
-        
-	ELSEIF (NEW.quantity <= 0 AND NEW.transaction_type != 'ADJUST') THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Only transaction can have a negative field';
-	END IF;
-
-    SELECT quantity
-    INTO current_qty
-    FROM Inventory
-    WHERE internal_num = NEW.internal_num;
-
-	IF current_qty IS NULL THEN
-		SET current_qty = 0;
-	END IF;
-
-    IF NEW.transaction_type IN ('USE','WASTE') 
-       AND current_qty - NEW.quantity < 0 THEN
+CREATE TRIGGER validate_invoice_update
+BEFORE UPDATE ON Invoice
+FOR EACH ROW
+BEGIN
+    IF OLD.approval_status IN ('APPROVED','DENIED') THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Inventory cannot go negative';
-        
-	ELSEIF NEW.transaction_type = 'ADJUST'
-		AND current_qty + NEW.quantity < 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Inventory cannot go negative';
+        SET MESSAGE_TEXT = 'Cannot update a resolved invoice';
+	ELSEIF NEW.approved_by IS NULL 
+    AND NEW.approval_status IN ('APPROVED', 'DENIED') THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Manager needed to resolve invoice';
+    END IF;
+END$$
 
+CREATE TRIGGER update_invoice_line
+AFTER UPDATE ON Invoice
+FOR EACH ROW
+BEGIN
+    IF OLD.approval_status <> NEW.approval_status THEN
+    
+        IF NEW.approval_status = 'APPROVED' THEN
+            UPDATE InventoryTransaction
+            SET approval_status = 'APPROVED'
+            WHERE invoice_num = NEW.invoice_num
+              AND transaction_type = 'RECEIVE';
+    
+        ELSEIF NEW.approval_status = 'DENIED' THEN
+            UPDATE InventoryTransaction
+            SET approval_status = 'DENIED'
+            WHERE invoice_num = NEW.invoice_num
+              AND transaction_type = 'RECEIVE';
+        END IF;
+        
+    END IF;
+END$$
+
+CREATE TRIGGER validate_inventory_transaction_update
+BEFORE UPDATE ON InventoryTransaction
+FOR EACH ROW
+BEGIN
+    DECLARE current_quantity DECIMAL(10,3);
+
+    IF OLD.approval_status IN ('APPROVED','DENIED') 
+    AND OLD.approval_status = 'PENDING' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cannot update a Resolved transaction';
+	ELSEIF NEW.approved_by IS NULL
+    AND NEW.transaction_type <> 'USE' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Manager credentials needed to input not USE transaction';
     END IF;
 
-END $$
+    IF NEW.approval_status = 'APPROVED' THEN
+		INSERT INTO Inventory (internal_num, quantity)
+		VALUES (NEW.internal_num, 0)
+		ON DUPLICATE KEY UPDATE internal_num = internal_num;
+        
+        SELECT quantity
+        INTO current_quantity
+        FROM Inventory
+        WHERE internal_num = NEW.internal_num;
+
+        IF NEW.transaction_type IN ('WASTE', 'USE') THEN
+            IF current_quantity - NEW.quantity < 0 THEN
+                SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Cannot approve transaction that would create negative inventory';
+            END IF;
+
+        ELSEIF NEW.transaction_type = 'ADJUST' THEN
+            IF current_quantity + NEW.quantity < 0 THEN
+                SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Cannot approve transaction that would create negative inventory';
+            END IF;
+        END IF;
+
+    END IF;
+END$$
 
 CREATE TRIGGER update_inventory
-AFTER INSERT ON InventoryTransaction
+AFTER UPDATE ON InventoryTransaction
 FOR EACH ROW
 BEGIN
-	DECLARE current_quantity DECIMAL(10,3);
-	IF EXISTS (
-		SELECT 1 FROM Inventory
-        WHERE internal_num = NEW.internal_num
-    ) THEN
-		SELECT quantity 
-		INTO current_quantity
-		FROM Inventory 
-		WHERE NEW.internal_num = internal_num;
-		IF NEW.transaction_type = 'ADJUST' THEN
+    DECLARE current_quantity DECIMAL(10,3);
+    
+	SELECT quantity
+	INTO current_quantity
+	FROM Inventory
+	WHERE internal_num = NEW.internal_num;
+
+	IF OLD.approval_status = 'PENDING'
+		AND NEW.approval_status = 'APPROVED' THEN
+        
+		IF NEW.transaction_type IN ('WASTE', 'USE') THEN
+			SET current_quantity = current_quantity - NEW.quantity;
+		ELSE
 			SET current_quantity = current_quantity + NEW.quantity;
-            
-		ELSEIF NEW.transaction_type = 'RECEIVE' THEN
-			SET current_quantity = current_quantity + ABS(NEW.quantity);
-            
-		ELSEIF NEW.transaction_type IN ('WASTE', 'USE') THEN 
-            SET current_quantity = current_quantity - ABS(NEW.quantity);
 		END IF;
-        IF current_quantity < 0 THEN
-			SIGNAL SQLSTATE '45000'
-			SET MESSAGE_TEXT = 'Inventory cannot go negative';
-		
-        ELSE
-			UPDATE Inventory
-			SET quantity = current_quantity
-			WHERE internal_num = NEW.internal_num;
-		END IF;
-    ELSE 
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = "Cannot use or waste product not in inventory";
+		UPDATE Inventory
+        SET quantity = current_quantity
+        WHERE internal_num = NEW.internal_num
+        AND approval_status = 'PENDING';
 	END IF;
-END $$
+
+
+
+
+END$$
+
 DELIMITER ;
 
 SHOW TRIGGERS;
