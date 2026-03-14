@@ -125,16 +125,73 @@ END$$
 -- Used to resolved single inventory transactions
 CREATE PROCEDURE resolveInventoryTransaction(
     IN p_transaction_num INT,
-    IN p_new_status VARCHAR(20)
+    IN p_new_status VARCHAR(20),
+    IN p_approved_by VARCHAR(20)
 )
 BEGIN
 	DECLARE count INT;
-	
+    DECLARE inventory_quantity DECIMAL(10,3);
+    DECLARE transaction_quantity DECIMAL(10,3);
+    DECLARE trans_type VARCHAR(20),
+	DECLARE EXIT HANDLER FOR SQLEXCEPTION
+	BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    START TRANSACTION;    
+    
     SELECT COUNT(*)
     INTO count
     FROM InventoryTransaction
     WHERE transaction_num = p_transaction_num;
 
+	-- Ensures that transaction number is valid
+	IF count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Transaction not found';
+	END IF;
+    
+	SELECT COUNT(*)
+    INTO count
+    FROM Manager
+    WHERE manager_num = p_approved_by;
+    
+    -- Ensures valid manager credentials are given
+	IF count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid Manager Credentials';
+	END IF;
+    
+    -- Ensures that final transaction status is valid
+    IF p_new_status NOT IN ('APPROVED', 'DENIED') THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invnetory Transaction must be resolved by APPROVED OR DENIED';
+	END IF;
+    
+    -- locks inventorytransaction and gets transaction quantity
+	SELECT quantity, transaction_type
+    INTO transaction_quantity, trans_type
+    FROM InventoryTransaction
+    WHERE transaction_num = p_transaction_num
+    FOR UPDATE;
+    
+        -- locks inventory and gets inventory quantity
+	SELECT quantity
+    INTO inventory_quantity
+    FROM Inventory
+    WHERE transaction_num = p_transaction_num
+    FOR UPDATE;
+    
+    IF trans_type <> 'USE'
+     
+    
+    
+    
+    
+    
+    
+	COMMIT;
 
 
 
