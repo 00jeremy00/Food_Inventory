@@ -43,8 +43,9 @@ CREATE TABLE IF NOT EXISTS Invoice(
     invoice_date DATE NOT NULL,
     vendor_num VARCHAR(6) NOT NULL,
     approval_status ENUM('APPROVED', 'PENDING', 'DENIED') DEFAULT 'PENDING' NOT NULL,
-    manager_num VARCHAR(20),
-    FOREIGN KEY (vendor_num) REFERENCES Vendor(vendor_num)
+    approved_by VARCHAR(20),
+    FOREIGN KEY (vendor_num) REFERENCES Vendor(vendor_num),
+    FOREIGN KEY (approved_by) REFERENCES Manager(manager_num)
 );
 
 CREATE TABLE IF NOT EXISTS InvoiceLine(

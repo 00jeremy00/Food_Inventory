@@ -2,10 +2,66 @@ DROP PROCEDURE IF EXISTS enter_waste;
 DROP PROCEDURE IF EXISTS use_product;
 DROP PROCEDURE IF EXISTS adjust_inventory;
 DROP PROCEDURE IF EXISTS receive_product;
-DROP PROCEDURE IF EXISTS updateInvoiceTransaction;
+DROP PROCEDURE IF EXISTS updateInventoryTransaction;
 DELIMITER $$
 
-CREATE PROCEDURE updateInvoiceTransaction(
+CREATE PROCEDURE updateInvoice(
+	IN p_invoice_num VARCHAR(20),
+    IN p_new_status VARCHAR(20),
+    IN p_approved_by VARCHAR(20)
+)
+BEGIN
+	DECLARE v_count INT;
+	DECLARE v_old_status VARCHAR(20);
+    
+	DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    IF p_approved_by IS NULL
+    OR TRIM(p_approved_by) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Must have valid manager approval';
+	
+    ELSEIF p_invoice_num IS NULL OR TRIM(p_invoice_num) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid Invoice number';		
+        
+	ELSEIF p_new_status NOT IN ('APPROVED','DENIED') THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Updated invoice must be APPROVED OR DENIED';
+    END IF;
+    
+    START TRANSACTION;
+    SELECT approval_status, COUNT(*)
+    INTO v_old_status, v_count
+    FROM Invoice
+    WHERE invoice_num = p_invoice_num;
+    
+    IF v_old_status <> 'PENDING' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Can only update pending invoice';
+	ELSEIF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invoice not found';
+	END IF;
+
+    UPDATE Invoice
+    SET approval_status = p_new_status
+    WHERE invoice_num = p_invoice_num;
+    
+    UPDATE InvoiceLine
+    SET approval_status = p_new_status,
+		approved_by = p_approved_by
+    WHERE invoice_num = p_invoice_num
+    AND approval_status = 'PENDING';
+    COMMIT;
+
+END $$
+
+CREATE PROCEDURE updateInventoryTransaction(
     IN p_transaction_num INT,
     IN p_new_status VARCHAR(20)
 )
