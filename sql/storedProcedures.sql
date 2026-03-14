@@ -3,69 +3,149 @@ DROP PROCEDURE IF EXISTS use_product;
 DROP PROCEDURE IF EXISTS adjust_inventory;
 DROP PROCEDURE IF EXISTS receive_product;
 DROP PROCEDURE IF EXISTS updateInventoryTransaction;
+DROP PROCEDURE IF EXISTS resolveInvoice;
 DELIMITER $$
 
-CREATE PROCEDURE updateInvoice(
-	IN p_invoice_num VARCHAR(20),
-    IN p_new_status VARCHAR(20),
-    IN p_approved_by VARCHAR(20)
+
+CREATE PROCEDURE resolveInvoice(
+    IN p_invoice_num VARCHAR(20),		-- invoice num to resolve
+    IN p_approval_status VARCHAR(20),	-- resolution to invoice
+    IN p_approved_by VARCHAR(20)		-- manager num who is resolving
 )
 BEGIN
-	DECLARE v_count INT;
-	DECLARE v_old_status VARCHAR(20);
-    
-	DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    DECLARE v_count INT DEFAULT 0;		
+    DECLARE v_old_status VARCHAR(20);	-- previous status of invoice
+    DECLARE v_internal_num VARCHAR(20);	-- holds internal nums of all items being updated
+    DECLARE v_transaction_num INT;		-- transaction numbers connected to invoice
+    DECLARE v_transaction_quantity DECIMAL(10,3);
+    DECLARE v_inventory_quantity DECIMAL(10,3);
+    DECLARE done INT DEFAULT FALSE;
+
+    DECLARE cur CURSOR FOR				-- gets transaction info for transactions of selected invoice
+        SELECT transaction_num, internal_num, quantity
+        FROM InventoryTransaction
+        WHERE invoice_num = p_invoice_num
+          AND transaction_type = 'RECEIVE'
+          AND approval_status = 'PENDING';
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
         RESIGNAL;
     END;
-    
-    IF p_approved_by IS NULL
-    OR TRIM(p_approved_by) = '' THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Must have valid manager approval';
-	
-    ELSEIF p_invoice_num IS NULL OR TRIM(p_invoice_num) = '' THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Invalid Invoice number';		
-        
-	ELSEIF p_new_status NOT IN ('APPROVED','DENIED') THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Updated invoice must be APPROVED OR DENIED';
-    END IF;
-    
+
     START TRANSACTION;
-    SELECT approval_status, COUNT(*)
-    INTO v_old_status, v_count
+
+	-- Ensures invoice num is given
+    SELECT COUNT(*)
+    INTO v_count
     FROM Invoice
     WHERE invoice_num = p_invoice_num;
     
-    IF v_old_status <> 'PENDING' THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Can only update pending invoice';
-	ELSEIF v_count = 0 THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Invoice not found';
-	END IF;
+	IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid invoice number';
 
-    UPDATE Invoice
-    SET approval_status = p_new_status
-    WHERE invoice_num = p_invoice_num;
-    
-    UPDATE InvoiceLine
-    SET approval_status = p_new_status,
-		approved_by = p_approved_by
+	-- Ensures valid approval state is being set
+    ELSEIF p_approval_status NOT IN ('APPROVED','DENIED') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Updated invoice must be APPROVED or DENIED';
+    END IF;
+
+	-- Ensures valid manager number is given
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Manager
+    WHERE manager_num = p_approved_by;
+	
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Valid manager credentials are necessary to accept invoice';
+    END IF;
+
+    /* lock the invoice row */
+    SELECT approval_status
+    INTO v_old_status
+    FROM Invoice
     WHERE invoice_num = p_invoice_num
-    AND approval_status = 'PENDING';
+    FOR UPDATE;
+    
+	-- Ensures the invoice is in valid pending state to update
+    IF v_old_status <> 'PENDING' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No pending invoice found';
+    END IF;
+
+    OPEN cur;
+
+    read_loop: LOOP
+        FETCH cur INTO v_transaction_num, v_internal_num, v_transaction_quantity;
+
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+		-- invoice aproval must update inventory
+        IF p_approval_status = 'APPROVED' THEN
+            INSERT INTO Inventory (internal_num, quantity)
+            VALUES (v_internal_num, 0)
+            ON DUPLICATE KEY UPDATE internal_num = internal_num;
+
+            SELECT quantity
+            INTO v_inventory_quantity
+            FROM Inventory
+            WHERE internal_num = v_internal_num
+            FOR UPDATE;
+
+            UPDATE Inventory
+            SET quantity = v_inventory_quantity + v_transaction_quantity
+            WHERE internal_num = v_internal_num;
+        END IF;
+		
+        -- updates inventoryTransaction's
+        UPDATE InventoryTransaction
+        SET approval_status = p_approval_status,
+            approved_by = p_approved_by
+        WHERE transaction_num = v_transaction_num;
+    END LOOP;
+
+    CLOSE cur;
+
+	-- updates the invoice
+    UPDATE Invoice
+    SET approval_status = p_approval_status,
+        approved_by = p_approved_by
+    WHERE invoice_num = p_invoice_num;
+
     COMMIT;
+END$$
 
-END $$
-
-CREATE PROCEDURE updateInventoryTransaction(
+-- Used to resolved single inventory transactions
+CREATE PROCEDURE resolveInventoryTransaction(
     IN p_transaction_num INT,
     IN p_new_status VARCHAR(20)
 )
 BEGIN
+	DECLARE count INT;
+	
+    SELECT COUNT(*)
+    INTO count
+    FROM InventoryTransaction
+    WHERE transaction_num = p_transaction_num;
+
+
+
+
+
+
+
+
+
+
+
+
     DECLARE v_internal_num VARCHAR(20);
     DECLARE v_transaction_type VARCHAR(20);
     DECLARE v_transaction_qty DECIMAL(10,3);
