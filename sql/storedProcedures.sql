@@ -132,7 +132,7 @@ BEGIN
 	DECLARE count INT;
     DECLARE inventory_quantity DECIMAL(10,3);
     DECLARE transaction_quantity DECIMAL(10,3);
-    DECLARE trans_type VARCHAR(20),
+    DECLARE trans_type VARCHAR(20);
 	DECLARE EXIT HANDLER FOR SQLEXCEPTION
 	BEGIN
         ROLLBACK;
