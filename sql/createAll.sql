@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS Item(
     internal_name VARCHAR(64) NOT NULL,
     category VARCHAR(64) NOT NULL,
     internal_unit VARCHAR(20) NOT NULL,
+    average_price DECIMAL(10,3),
     FOREIGN KEY (category) REFERENCES Category(category_name)
 );
 
@@ -72,7 +73,10 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
     manager_num VARCHAR(20),
     approval_status ENUM('APPROVED', 'PENDING', 'DENIED') DEFAULT 'PENDING' NOT NULL,
     invoice_num VARCHAR(20),
+    vendor_pnum VARCHAR(64),
+    price_per_unit DECIMAL(10,3) NOT NULL,
     reason VARCHAR(64),
+    FOREIGN KEY (vendor_pnum) REFERENCES Product(vendor_pnum),
 	FOREIGN KEY (invoice_num) REFERENCES Invoice(invoice_num),
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
     FOREIGN KEY (manager_num) REFERENCES Manager(manager_num),

@@ -237,11 +237,15 @@ END$$
 CREATE PROCEDURE createUseTransaction( 
     IN item VARCHAR(20), 
     IN quantity DECIMAL(10,3), 
-    IN manager VARCHAR(20) 
+    IN manager VARCHAR(20),
+    IN product_num VARCHAR(64)
 )
 BEGIN
 	DECLARE v_count INT;
-    
+    DECLARE v_price DECIMAL(10,3);
+    DECLARE trans_product_num VARCHAR(64);
+    DECLARE item_verification VARCHAR(20);
+	DECLARE v_conversion DECIMAL(10, 3);
     SELECT COUNT(*)
     INTO v_count
     FROM Manager
@@ -254,7 +258,7 @@ BEGIN
 	-- if manager number is given, ensures it is valid
 	ELSEIF v_count = 0 AND manager IS NOT NULL THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Manager mumberis invalid';
+        SET MESSAGE_TEXT = 'Manager number is invalid';
 	END IF;
 
 	SELECT COUNT(*)
@@ -268,7 +272,48 @@ BEGIN
         SET MESSAGE_TEXT = 'Item number is invalid';
 	END IF;
     
+    -- if no product num or NULL is given, uses average price
+    IF product_num IS NULL OR TRIM(product_num) = '' THEN
+		SELECT average_price 
+        INTO v_price 
+        FROM Item
+        WHERE internal_num = item;
+        
+        SET v_trans_product = NULL;
+	ELSE 
     
+        SELECT COUNT(*)
+		INTO v_count
+		FROM Product
+		WHERE vendor_pnum = product_num;
+        -- ensures valid product number
+		IF v_count = 0 THEN
+			SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'Product number is invalid';
+		END IF;
+    
+		SELECT internal_number
+		INTO item_verification
+		FROM Product
+		WHERE vendor_pnum = product_num;
+    
+		IF item_verficiation <> item THEN
+			SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'Vendor product number does not match internal number given';
+		END IF;
+		SELECT price, conversion_factor
+        INTO v_price, v_conversion
+        FROM Product
+        WHERE vendor_pnum = product_num;
+        
+        IF v_conversion < 0 THEN
+			SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'Invalid conversion factor';
+		END IF;
+        
+        SET v_price = v_price / v_conversion;	-- translates price to internal units
+        SET v_trans_product = product_num;
+    END IF;
     INSERT INTO InventoryTransaction (
         internal_num,
         transaction_type,
@@ -277,7 +322,9 @@ BEGIN
         approved_by,
         approval_status,
         invoice_num,
-        reason
+		price_per_unit,
+        vendor_pnum,
+        reason        
     )
     VALUES (
         item,
@@ -287,6 +334,8 @@ BEGIN
         manager,
         'PENDING',
         NULL,
+        v_price,
+        v_trans_product,
         NULL
     );
 END$$
@@ -295,10 +344,15 @@ CREATE PROCEDURE createAdjustTransaction(
     IN item VARCHAR(20), 
     IN trans_quantity DECIMAL(10,3), 
     IN manager VARCHAR(20),
-    IN adjust_reason VARCHAR(64)
+    IN adjust_reason VARCHAR(64),
+    IN product_num VARCHAR(64)
 )
 BEGIN
 	DECLARE v_count INT;
+    DECLARE item_verification VARCHAR(20);
+    DECLARE v_price DECIMAL(10,3);
+    DECLARE v_conversion DECIMAL(10, 3);
+    DECLARE trans_product_num VARCHAR(64);
     
     SELECT COUNT(*)
     INTO v_count
@@ -330,6 +384,54 @@ BEGIN
         SET MESSAGE_TEXT = 'Invalid item number';		
 	END IF;
     
+    -- if product num is not given, uses average price
+    IF product_num IS NULL OR TRIM(product_num) = '' THEN
+		SELECT average_price
+        INTO v_price
+        FROM Item
+        WHERE internal_num = item;
+        SET trans_product_num = NULL;
+        
+	-- otherwise verifies product number is for item and uses that price
+	ELSE 
+		SELECT COUNT(*)
+		INTO v_count
+		FROM Product
+		WHERE vendor_pnum = product_num;
+        
+        IF v_count = 0 THEN
+			SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Invalid product number';	
+		END IF;
+        
+        
+		SELECT internal_num
+		INTO item_verification
+		FROM Product
+		WHERE vendor_pnum = product_num;
+    
+		-- ensures internal number matches product number
+		IF item_verificiation <> item THEN
+			SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'Vendor product number does not match internal number given';
+		END IF;
+		
+        SELECT price, conversion_factor
+        INTO v_price, v_conversion
+        FROM Product
+        WHERE vendor_pnum = product_num;
+        
+        -- ensures conversion factor is positive 
+		IF v_conversion < 0 THEN
+			SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'Invalid conversion factor';
+		END IF;
+        
+        SET v_price = v_price / v_conversion;
+        SET trans_product_num = product_num;
+    END IF;
+    
+    
    INSERT INTO InventoryTransaction (
         internal_num,
         transaction_type,
@@ -338,6 +440,8 @@ BEGIN
         approved_by,
         approval_status,
         invoice_num,
+        vendor_pnum,
+        price_per_unit,
         reason
     )
     VALUES (
@@ -348,6 +452,7 @@ BEGIN
         manager,
         'PENDING',
         NULL,
+        v_price,
         adjust_reason
     );
 END $$
@@ -356,10 +461,15 @@ CREATE PROCEDURE createWasteTransaction(
 	IN item VARCHAR(20),
     IN trans_quantity DECIMAL(10,3),
     IN manager VARCHAR(20),
-    IN waste_reason VARCHAR(64)
+    IN waste_reason VARCHAR(64),
+    IN product_num VARCHAR(64)
 )
 BEGIN
 	DECLARE v_count INT;
+    DECLARE item_verification VARCHAR(20);
+    DECLARE v_price DECIMAL(10,3);
+    DECLARE v_conversion DECIMAL(10, 3);
+    DECLARE trans_product_num VARCHAR(64);
     
     SELECT COUNT(*)
     INTO v_count
@@ -385,6 +495,21 @@ BEGIN
     IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Manager mumberis invalid';
+    END IF;
+    
+    -- if product num is null or emtpy use average_price
+    IF product_num IS NULL OR TRIM(product_num) = '' THEN
+		SELECT average_price
+        INTO v_price
+        FROM Item
+        WHERE internal_number = item;
+        
+        IF v_price < 0 THEN
+			SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'price must be positive';
+        END IF;
+        SET
+        
     END IF;
     
     INSERT INTO InventoryTransaction(
