@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS Product(
     purchase_unit VARCHAR(20) NOT NULL,
     vendor_num VARCHAR(6) NOT NULL,
     price DECIMAL(10,2) NOT NULL,
-    conversion_factor Decimal (10,3) NOT NULL,
+    conversion_factor DECIMAL(10,3) NOT NULL,
     FOREIGN KEY (vendor_num) REFERENCES Vendor(vendor_num),
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num)
 );

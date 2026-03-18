@@ -591,8 +591,11 @@ BEGIN
     FROM Item
     WHERE internal_num = new_id;
     
-	-- verifies that new is not already in Item
-    IF v_count <> 0 THEN
+	-- verifies that new is not already in Item and valid
+    IF new_id IS NULL OR TRIM(new_id) = '' THEN
+   		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invalid item number'; 
+    ELSEIF v_count <> 0 THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'internal item already taken';
         
@@ -638,4 +641,225 @@ BEGIN
 	);
 END $$
 
+CREATE PROCEDURE addProduct(
+	IN new_product VARCHAR(64),
+    IN new_name VARCHAR(255),
+    IN new_internal_num VARCHAR(20),
+    IN new_unit VARCHAR(20),
+    IN new_vendor VARCHAR(6),
+    IN new_price DECIMAL(10,2),
+    IN new_factor DECIMAL(10,3)
+)
+BEGIN 
+	DECLARE v_count INT;
+    
+SELECT COUNT(*)
+    INTO v_count
+    FROM Product
+    WHERE vendor_pnum = new_product;
+    
+	-- verifies product number is valid and not taken
+    IF new_product IS NULL OR TRIM(new_product) = '' THEN
+   		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invalid item number'; 
+    ELSEIF v_count <> 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'internal item already taken';
+	END IF;
+    
+	SELECT COUNT(*)
+    INTO v_count
+    FROM Item
+    WHERE internal_num = new_internal_num;
+    
+	-- verifies that new item number valid and exists
+    IF new_internal_num IS NULL OR TRIM(new_internal_num) = '' THEN
+   		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invalid item number'; 
+    ELSEIF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'internal does not exist';
+        
+	-- verifies name is given
+	ELSEIF new_name IS NULL OR TRIM(new_name) = '' THEN
+		 SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'item name is required';
+        
+	-- verifies item has a unit
+	ELSEIF new_unit IS NULL OR TRIM(new_unit) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'internal unit is required';
+	
+    -- verifies product has a valid conversion factor
+	ELSEIF new_factor IS NULL OR new_factor <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'conversion factor is required';
+	
+	ELSEIF new_price IS NULL OR new_price <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'strictly positive price is required for new product';	
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Vendor
+    WHERE vendor_num = new_vendor;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invalid vendor number';	
+	END IF;
+    
+    INSERT INTO Product(
+    	vendor_pnum,
+		vendor_pname,
+		internal_num,
+		purchase_unit,
+		vendor_num,
+		price,
+		conversion_factor
+    )
+    VALUES(
+		new_product,
+		new_name,
+		new_internal_num,
+		new_unit,
+		new_vendor,
+		new_price,
+		new_factor
+    );
+END $$
+
+CREATE PROCEDURE addVendor(
+	IN new_vendor_num VARCHAR(6),
+    IN new_name VARCHAR(64),
+    IN new_phone_number VARCHAR(20),
+    IN new_email VARCHAR(64),
+    IN new_website VARCHAR(255)
+)
+BEGIN
+	DECLARE v_count INT;
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Vendor
+    WHERE vendor_num = new_vendor_num;
+    
+    -- enures vendor num is valid
+    IF new_vendor_num IS NULL OR TRIM(new_vendor_num) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Vendor requires identifying number';
+        
+	ELSEIF v_count <> 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Vendor number already taken';
+	
+    ELSEIF new_name IS NULL OR TRIM(new_name) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'requires vendor name';
+    
+	END IF;
+    INSERT INTO Vendor(
+    	vendor_num,
+		vendor_name,
+		phone_number,
+		email,
+		website
+    ) 
+    VALUES(
+		new_vendor_num,
+        new_name,
+        new_phone_number,
+        new_email,
+        new_website
+    );
+END $$
+
+
+CREATE PROCEDURE addManager(
+	IN new_manager_num VARCHAR(20),
+    IN new_name VARCHAR(64)
+)
+BEGIN 
+	DECLARE v_count INT;
+    
+    SELECT COUNT(*)
+    INTO v_count 
+    FROM Manager
+    WHERE manager_num = new_manager_num;
+    
+    IF new_manager_num IS NULL OR TRIM(new_manager_num) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'manager number required';
+	ELSEIF v_count <> 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'manager number already taken';
+	ELSEIF new_name IS NULL OR TRIM(new_name) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'manager name is required';
+	END IF;
+    
+    INSERT INTO Manager(
+		manager_num,
+        manager_name
+    )
+    VALUES(
+		new_manager_num,
+        new_name
+    );
+END $$
+
+CREATE PROCEDURE addInvoice(
+	IN new_invoice VARCHAR(20),
+	IN new_date DATE,
+    IN new_vendor VARCHAR(6)
+)
+BEGIN
+	DECLARE v_count INT;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Invoice
+    WHERE invoice_num = new_invoice;
+    
+    -- verifies invoice number is valid
+    IF new_invoice IS NULL OR TRIM(new_invoice) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invoice number needed for invoice';
+	ELSEIF v_count <> 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invoice number in use';
+    END IF;
+    
+    -- verifies date 
+    IF new_date IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invalid date';	
+	END IF;
+    
+	SELECT COUNT(*)
+    INTO v_count
+    FROM Vendor
+    WHERE vendor_num = new_vendor;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invalid vendor number';	
+	END IF;
+    
+    INSERT INTO Invoice(
+		invoice_num,
+        invoice_date,
+        vendor_num,
+        approval_status,
+        approved_by
+    )
+    VALUES(
+		new_invoice,
+        new_date,
+        new_vendor,
+        'PENDING',
+        NULL
+    );
+
+END $$
 DELIMITER ;
