@@ -576,4 +576,66 @@ BEGIN
     );
 END $$
 
+CREATE PROCEDURE addItem(
+	IN new_id VARCHAR(20),
+    IN new_name VARCHAR(64),
+    IN new_category VARCHAR(64),
+    IN new_unit VARCHAR(20),
+    IN new_price DECIMAL(10,3)
+)
+BEGIN
+	DECLARE v_count INT;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Item
+    WHERE internal_num = new_id;
+    
+	-- verifies that new is not already in Item
+    IF v_count <> 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'internal item already taken';
+        
+	-- verifies name is given
+	ELSEIF new_name IS NULL OR TRIM(new_name) = '' THEN
+		 SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'item name is required';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Category 
+    WHERE category_name = new_category;
+    
+    -- verifies valid category
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invalid category';
+        
+	-- verifies item has a unit
+	ELSEIF new_unit IS NULL OR TRIM(new_unit) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'internal unit is required';
+        
+	ELSEIF new_price IS NULL OR new_price <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'strictly positive price is required for new item';	
+	END IF;
+    
+    INSERT INTO Item(
+		internal_num,
+        internal_name,
+        category,
+        internal_unit,
+        average_price
+	)
+	VALUES (
+		new_id,
+        new_name,
+        new_category,
+        new_unit,
+        new_price
+	);
+END $$
+
 DELIMITER ;
