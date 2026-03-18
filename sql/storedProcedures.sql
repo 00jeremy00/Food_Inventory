@@ -862,4 +862,92 @@ BEGIN
     );
 
 END $$
+
+CREATE PROCEDURE InvoiceLine(
+	IN new_invoice VARCHAR(20),
+    IN new_product_num VARCHAR(64),
+    IN new_quantity DECIMAL(10,3)
+)
+BEGIN
+	DECLARE v_count INT;
+    DECLARE new_internal_num VARCHAR(20);
+    DECLARE new_product_price DECIMAL(10,3);
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Invoice
+    WHERE invoice_num = new_invoice;
+    
+    -- verifies invoice number is valid
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invoice not found';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Product
+    WHERE vendor_pnum = new_product_num;
+
+    -- verifies product number is valid
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'product number not found';
+        
+	-- verifies quantity is valid
+	ELSEIF new_quantity <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invoice quantity must be strictly positive';	
+	END IF;
+    
+    INSERT INTO InventoryLine(
+		invoice_num,
+        vendor_pnum,
+        quantity
+    ) VALUES(
+		new_invoice,
+        new_product_num,
+        new_quantity
+    );
+    
+    SELECT internal_num, price
+    INTO new_internal_num, new_product_price
+    FROM Product
+    WHERE vendor_pnum = new_product_num;
+    
+    -- verifies data from product is valid
+    IF internal_num IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'item internal number not found';
+	ELSEIF new_product_price <= 0 OR new_product_price IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'price must be stricly positive';
+	END IF;
+	
+    INSERT INTO InventoryTransaction(
+		internal_num,
+		transaction_type,
+		quantity,
+		transaction_date,
+		manager_num,
+		approval_status,
+		invoice_num,
+		vendor_pnum,
+		price_per_unit,
+		reason
+    ) VALUES(
+		new_internal_num,
+        'RECEIVE',
+        new_quantity,
+        CURRENT_TIMESTAMP,
+        NULL,
+        'PENDING',
+        new_invoice,
+        new_product_num,
+        new_product_price,
+        NULL
+    );
+    
+END $$
+
 DELIMITER ;
