@@ -863,7 +863,7 @@ BEGIN
 
 END $$
 
-CREATE PROCEDURE InvoiceLine(
+CREATE PROCEDURE addInvoiceLine(
 	IN new_invoice VARCHAR(20),
     IN new_product_num VARCHAR(64),
     IN new_quantity DECIMAL(10,3)
@@ -872,6 +872,11 @@ BEGIN
 	DECLARE v_count INT;
     DECLARE new_internal_num VARCHAR(20);
     DECLARE new_product_price DECIMAL(10,3);
+    DECLARE invoice_status VARCHAR(20);
+    DECLARE product_vendor VARCHAR(6);
+    DECLARE invoice_vendor VARCHAR(6);
+    DECLARE v_factor DECIMAL(10,3);
+    
     
     SELECT COUNT(*)
     INTO v_count
@@ -882,6 +887,16 @@ BEGIN
     IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'invoice not found';
+	END IF;
+    
+    SELECT approval_status
+    INTO invoice_status
+    FROM Invoice
+    WHERE invoice_num = new_invoice;
+    
+    IF invoice_status <> 'PENDING' OR invoice_status IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invoice must be pending to add invoice line items';
 	END IF;
     
     SELECT COUNT(*)
@@ -895,12 +910,34 @@ BEGIN
         SET MESSAGE_TEXT = 'product number not found';
         
 	-- verifies quantity is valid
-	ELSEIF new_quantity <= 0 THEN
+	ELSEIF new_quantity <= 0 OR new_quantity IS NULL THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'invoice quantity must be strictly positive';	
 	END IF;
     
-    INSERT INTO InventoryLine(
+    SELECT vendor_num
+    INTO invoice_vendor
+    FROM Invoice
+    WHERE invoice_num = new_invoice;
+    
+    SELECT vendor_num
+    INTO product_vendor
+    FROM Product
+    WHERE vendor_pnum = new_product_num;
+    
+    -- checks that invoice's vendor matches product's vendor
+    IF invoice_vendor IS NULL OR TRIM(invoice_vendor) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invoice vendor is ilegal';
+	ELSEIF product_vendor IS NULL OR TRIM(product_vendor) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product vendor is ilegal';
+	ELSEIF product_vendor <> invoice_vendor THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'product and invoice vendors do not match';
+    END IF;
+    
+    INSERT INTO InvoiceLine(
 		invoice_num,
         vendor_pnum,
         quantity
@@ -910,26 +947,31 @@ BEGIN
         new_quantity
     );
     
-    SELECT internal_num, price
-    INTO new_internal_num, new_product_price
+    SELECT internal_num, price, conversion_factor
+    INTO new_internal_num, new_product_price, v_factor
     FROM Product
     WHERE vendor_pnum = new_product_num;
     
     -- verifies data from product is valid
-    IF internal_num IS NULL THEN
+    IF new_internal_num IS NULL THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'item internal number not found';
 	ELSEIF new_product_price <= 0 OR new_product_price IS NULL THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'price must be stricly positive';
+	ELSEIF v_factor <= 0 OR v_factor IS NULL THEN
+			SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'conversion factor must be stricly positive';	
 	END IF;
+    
+    SET new_product_price = new_product_price / v_factor;
 	
     INSERT INTO InventoryTransaction(
 		internal_num,
 		transaction_type,
 		quantity,
 		transaction_date,
-		manager_num,
+		approved_by,
 		approval_status,
 		invoice_num,
 		vendor_pnum,

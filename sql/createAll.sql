@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
 	transaction_type ENUM('RECEIVE', 'USE', 'WASTE', 'ADJUST') NOT NULL,
     quantity DECIMAL(10,3) NOT NULL,
     transaction_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    manager_num VARCHAR(20),
+    approved_by VARCHAR(20),
     approval_status ENUM('APPROVED', 'PENDING', 'DENIED') DEFAULT 'PENDING' NOT NULL,
     invoice_num VARCHAR(20),
     vendor_pnum VARCHAR(64),
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
     FOREIGN KEY (vendor_pnum) REFERENCES Product(vendor_pnum),
 	FOREIGN KEY (invoice_num) REFERENCES Invoice(invoice_num),
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
-    FOREIGN KEY (manager_num) REFERENCES Manager(manager_num),
+    FOREIGN KEY (approved_by) REFERENCES Manager(manager_num),
     CONSTRAINT valid_type CHECK (transaction_type IN ('RECEIVE', 'USE', 'WASTE', 'ADJUST'))
 );
 SHOW TABLES;
