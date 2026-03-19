@@ -2,11 +2,17 @@ USE FOOD;
 USE FOOD;
 
 INSERT INTO Category VALUES
+('REFRIGERATED'),
+('DRY FOOD'),
+('FROZEN'),
 ("PRODUCE"),
 ("MEAT"),
 ("PAPER GOODS");
 
 INSERT INTO Vendor VALUES
+("000001", "Webstaraunt",
+"717-657-8931", "support@webstaraunt.com",
+"https://www.webstaurant.com"),
 ("000002", "Sysco",
 "1(281)584-1300", "support@sysco.com",
 "https://www.sysco.com/"),
@@ -18,21 +24,26 @@ INSERT INTO Vendor VALUES
 "https://www.restaurantdepot.com/");
 
 INSERT INTO Item VALUES
-("000006", "Mayonnaise", "DRY FOOD", "gal"),
-("000007", "Pickles", "DRY FOOD", "gal"),
-("000008", "Burger Buns", "DRY FOOD", "each"),
-("000009", "Ground Beef", "MEAT", "lb"),
-("000010", "Chicken Breast", "MEAT", "lb"),
-("000011", "Lettuce", "PRODUCE", "head"),
-("000012", "Tomatoes", "PRODUCE", "lb"),
-("000013", "Onions", "PRODUCE", "lb"),
-("000014", "Paper Towels", "PAPER GOODS", "roll"),
-("000015", "Foam Takeout Containers", "DRY GOODS", "each"),
-("000016", "Mozzarella Cheese", "REFRIGERATED", "lb"),
-("000017", "Bacon", "REFRIGERATED", "lb"),
-("000018", "Frozen Chicken Nuggets", "FROZEN", "lb"),
-("000019", "Hash Browns", "FROZEN", "lb"),
-("000020", "BBQ Sauce", "DRY FOOD", "gal");
+("000001", "French Fries", "FROZEN", "lb", 2.12),
+("000002", "Cheddar Cheese Slice", "PRODUCE", "lb", 10.0),
+("000003", "Ketchup", "DRY FOOD", "gal", 25.0),
+("000004", "Napkins", "DRY FOOD", "each", .01),
+("000005", "Mustard", "DRY FOOD", "gal", 27.25),
+("000006", "Mayonnaise", "DRY FOOD", "gal", 30.50),
+("000007", "Pickles", "DRY FOOD", "gal", 60.0),
+("000008", "Burger Buns", "DRY FOOD", "each", .50),
+("000009", "Ground Beef", "MEAT", "lb", 2.00),
+("000010", "Chicken Breast", "MEAT", "lb", 2.00),
+("000011", "Lettuce", "PRODUCE", "head", 1.50),
+("000012", "Tomatoes", "PRODUCE", "lb", 5.69),
+("000013", "Onions", "PRODUCE", "lb", 8.50),
+("000014", "Paper Towels", "PAPER GOODS", "roll", 4.00),
+("000015", "Foam Takeout Containers", "PAPER GOODS", "each", .20),
+("000016", "Mozzarella Cheese", "REFRIGERATED", "lb", 50.12),
+("000017", "Bacon", "REFRIGERATED", "lb", 20.0),
+("000018", "Frozen Chicken Nuggets", "FROZEN", "lb", 5.59),
+("000019", "Hash Browns", "FROZEN", "lb", 9.99),
+("000020", "BBQ Sauce", "DRY FOOD", "gal", 24.56);
 
 INSERT INTO Product VALUES
 ("126991260",
@@ -115,7 +126,7 @@ INSERT INTO Product VALUES
 "Mild Cheddar Cheese 5 lb. Loaf - 6/Case",
 "000002", "30lb", "000003", 176.49, 30.0);
 
-INSERT INTO Managers VALUES
+INSERT INTO Manager VALUES
 ("56881", "Jeremy Dickinson"),
 ("56882", "John Doe");
 
