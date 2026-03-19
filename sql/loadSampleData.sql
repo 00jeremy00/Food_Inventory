@@ -1,5 +1,4 @@
 USE FOOD;
-USE FOOD;
 
 INSERT INTO Category VALUES
 ('REFRIGERATED'),
@@ -25,9 +24,9 @@ INSERT INTO Vendor VALUES
 
 INSERT INTO Item VALUES
 ("000001", "French Fries", "FROZEN", "lb", 2.12),
-("000002", "Cheddar Cheese Slice", "PRODUCE", "lb", 10.0),
+("000002", "Cheddar Cheese Slice", "REFRIGERATED", "lb", 10.0),
 ("000003", "Ketchup", "DRY FOOD", "gal", 25.0),
-("000004", "Napkins", "DRY FOOD", "each", .01),
+("000004", "Napkins", "PAPER GOODS", "each", .01),
 ("000005", "Mustard", "DRY FOOD", "gal", 27.25),
 ("000006", "Mayonnaise", "DRY FOOD", "gal", 30.50),
 ("000007", "Pickles", "DRY FOOD", "gal", 60.0),
@@ -128,6 +127,62 @@ INSERT INTO Product VALUES
 
 INSERT INTO Manager VALUES
 ("56881", "Jeremy Dickinson"),
-("56882", "John Doe");
+("56882", "John Doe"),
+("56883", "Shabrea Stafford");
 
+CALL addInvoice("8945341", "2025-12-12", "000001");
+CALL addInvoiceLine("8945341", '126991260', 5);
+CALL addInvoiceLine("8945341", "hashbrown6", 2);
+CALL addInvoiceLine("8945341", 'mzz6132', 2);
+CALL addInvoiceLine("8945341", 'ptowel030', 7);
+
+CALL resolveInvoice('8945341', 'APPROVED', '56881');
+
+CALL addInvoice("89453412", "2025-12-19", "000002");
+CALL addInvoiceLine("89453412", "411pickle01", 1);
+CALL addInvoiceLine("89453412", "beef80193", 10);
+CALL addInvoiceLine("89453412", 'friesskinon', 20);
+CALL addInvoiceLine("89453412", 'lettuce24', 2);
+CALL addInvoiceLine("89453412", "must001alt", 1);
+CALL addInvoiceLine("89453412", "nugget10x2", 5);
+
+CALL addInvoice("89453413", "2025-12-20", "000003");
+CALL addInvoiceLine("89453413", "900bun001", 5);
+CALL addInvoiceLine("89453413", "bacon15sl", 15);
+CALL addInvoiceLine("89453413", 'bbq128oz4', 1);
+CALL addInvoiceLine("89453413", 'cheddar5lb6', 4);
+CALL addInvoiceLine("89453413", "chxbreast1", 10);
+CALL addInvoiceLine("89453413", "ketchup106", 1);
+CALL addInvoiceLine("89453413", "tomroma25", 2);
+
+CALL addInvoice("89453414", "2025-12-24", "000004");
+CALL addInvoiceLine("89453414", "foam200cl", 5);
+CALL addInvoiceLine("89453414", "napkinbev2", 15);
+
+CALL resolveInvoice('89453413', 'APPROVED', '56881');
+CALL resolveInvoice('89453414', 'APPROVED', '56881');
+
+CALL createUseTransaction('000001', 40, NULL, 'friesskinon');
+CALL resolveInventoryTransaction(20, 'APPROVED', NULL);
+
+CALL createWasteTransaction('000001', .5, '56881', 'dropped on the floor', 'friesskinon');
+CALL resolveInventoryTransaction(21, 'APPROVED', '56881');
+
+CALL createAdjustTransaction('000001', -4.6, '56881', 'inventory correction', NULL);
+CALL resolveInventoryTransaction(22, 'APPROVED', '56881');
+
+
+
+SELECT * FROM Invoice;
 SELECT * FROM Inventory;
+SELECT * FROM InvoiceLine;
+SELECT * FROM InventoryTransaction
+WHERE transaction_type = 'ADJUST';
+
+SELECT vendor_pnum
+FROM Product
+WHERE internal_num = '000001';
+
+SELECT *
+FROM Product 
+WHERE vendor_num = '000006';

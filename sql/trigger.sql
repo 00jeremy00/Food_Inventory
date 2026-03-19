@@ -1,7 +1,5 @@
 DROP TRIGGER IF EXISTS validate_invoice_update;
-DROP TRIGGER IF EXISTS update_invoice_line;
 DROP TRIGGER IF EXISTS validate_inventory_transaction_update;
-DROP TRIGGER IF EXISTS update_inventory;
 DROP TRIGGER IF EXISTS populate_inventory;
 
 DELIMITER $$

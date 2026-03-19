@@ -54,4 +54,8 @@ FROM WasteAdjustInfo
 WHERE transaction_type = 'ADJUST'
 ORDER BY transaction_date DESC;
 
+SELECT *
+FROM Item;
+
+
 SELECT * FROM InventoryTransaction;

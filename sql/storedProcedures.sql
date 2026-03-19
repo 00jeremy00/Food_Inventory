@@ -3,6 +3,12 @@ DROP PROCEDURE IF EXISTS resolveInvoice;
 DROP PROCEDURE IF EXISTS createUseTransaction;
 DROP PROCEDURE IF EXISTS createAdjustTransaction;
 DROP PROCEDURE IF EXISTS createWasteTransaction;
+DROP PROCEDURE IF EXISTS addItem;
+DROP PROCEDURE IF EXISTS addProduct;
+DROP PROCEDURE IF EXISTS addVendor;
+DROP PROCEDURE IF EXISTS addManager;
+DROP PROCEDURE IF EXISTS addInvoice;
+DROP PROCEDURE IF EXISTS addInvoiceLine;
 DELIMITER $$
 
 
@@ -964,8 +970,10 @@ BEGIN
         SET MESSAGE_TEXT = 'conversion factor must be stricly positive';	
 	END IF;
     
-    SET new_product_price = new_product_price / v_factor;
-	
+	SET new_quantity = new_quantity * v_factor;
+	SET new_product_price = new_product_price / new_quantity;
+
+    
     INSERT INTO InventoryTransaction(
 		internal_num,
 		transaction_type,
