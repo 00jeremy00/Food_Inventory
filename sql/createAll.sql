@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS Item(
     internal_name VARCHAR(64) NOT NULL,
     category VARCHAR(64) NOT NULL,
     internal_unit VARCHAR(20) NOT NULL,
-    average_price DECIMAL(10,3),
     FOREIGN KEY (category) REFERENCES Category(category_name)
 );
 
@@ -23,7 +22,8 @@ CREATE TABLE IF NOT EXISTS Vendor(
 );
 
 CREATE TABLE IF NOT EXISTS Product(
-	vendor_pnum VARCHAR(64) PRIMARY KEY,
+	product_num INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_pnum VARCHAR(64) NOT NULL,
     vendor_pname VARCHAR(255) NOT NULL,
     internal_num VARCHAR(20) NOT NULL,
     purchase_unit VARCHAR(20) NOT NULL,
@@ -34,28 +34,30 @@ CREATE TABLE IF NOT EXISTS Product(
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num)
 );
 
-CREATE TABLE IF NOT EXISTS Manager(
-	manager_num VARCHAR(20) PRIMARY KEY,
-    manager_name VARCHAR(64) NOT NULL
+CREATE TABLE IF NOT EXISTS Employee(
+	employee_num VARCHAR(20) PRIMARY KEY,
+    employee_name VARCHAR(64) NOT NULL,
+    is_manager BOOLEAN NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Invoice(
-	invoice_num VARCHAR(20) PRIMARY KEY,
+	invoice_id INT AUTO_INCREMENT PRIMARY KEY,
+	invoice_num VARCHAR(20) NOT NULL,
     invoice_date DATE NOT NULL,
     vendor_num VARCHAR(6) NOT NULL,
     approval_status ENUM('APPROVED', 'PENDING', 'DENIED') DEFAULT 'PENDING' NOT NULL,
     approved_by VARCHAR(20),
     FOREIGN KEY (vendor_num) REFERENCES Vendor(vendor_num),
-    FOREIGN KEY (approved_by) REFERENCES Manager(manager_num)
+    FOREIGN KEY (approved_by) REFERENCES Employee(employee_num)
 );
 
 CREATE TABLE IF NOT EXISTS InvoiceLine(
-	invoice_num VARCHAR(20) NOT NULL,
-    vendor_pnum VARCHAR(64) NOT NULL,
+	invoice_id INT NOT NULL,
+    product_num INT NOT NULL,
     quantity DECIMAL(10,3) NOT NULL,
-    PRIMARY KEY (invoice_num, vendor_pnum),
-    FOREIGN KEY (invoice_num) REFERENCES Invoice (invoice_num),
-    FOREIGN KEY (vendor_pnum) REFERENCES Product (vendor_pnum)
+    PRIMARY KEY (invoice_id, product_num),
+    FOREIGN KEY (invoice_id) REFERENCES Invoice (invoice_id),
+    FOREIGN KEY (product_num) REFERENCES Product (product_num)
 );
 
 CREATE TABLE IF NOT EXISTS Inventory(
@@ -71,15 +73,47 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
     quantity DECIMAL(10,3) NOT NULL,
     transaction_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     approved_by VARCHAR(20),
+    created_by VARCHAR(20),
     approval_status ENUM('APPROVED', 'PENDING', 'DENIED') DEFAULT 'PENDING' NOT NULL,
-    invoice_num VARCHAR(20),
-    vendor_pnum VARCHAR(64),
-    price_per_unit DECIMAL(10,3) NOT NULL,
+    invoice_id INT,
+    product_num INT,
+    price_per_unit DECIMAL(10,3),
     reason VARCHAR(64),
-    FOREIGN KEY (vendor_pnum) REFERENCES Product(vendor_pnum),
-	FOREIGN KEY (invoice_num) REFERENCES Invoice(invoice_num),
+    FOREIGN KEY (product_num) REFERENCES Product(product_num),
+	FOREIGN KEY (invoice_id) REFERENCES Invoice(invoice_id),
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
-    FOREIGN KEY (approved_by) REFERENCES Manager(manager_num),
+    FOREIGN KEY (approved_by) REFERENCES Employee(employee_num),
     CONSTRAINT valid_type CHECK (transaction_type IN ('RECEIVE', 'USE', 'WASTE', 'ADJUST'))
 );
+
+CREATE TABLE IF NOT EXISTS InventorySnapshotRecord(
+	snapshot_id INT AUTO_INCREMENT PRIMARY KEY,
+	snapshot_time DATETIME NOT NULL,
+    previous_snapshot INT NULL,
+    snapshot_status ENUM('PENDING', 'COMPLETED') DEFAULT 'PENDING' NOT NULL,
+    manager_num VARCHAR(20) NOT NULL,
+    notes VARCHAR(255),
+    FOREIGN KEY (manager_num) REFERENCES Employee(employee_num)
+);
+
+CREATE TABLE IF NOT EXISTS InventorySnapshot(
+	snapshot_id INT NOT NULL,
+    product_num INT NOT NULL,
+    expected_quantity DECIMAL(10,3) NOT NULL,
+    counted_quantity DECIMAL(10,3) NOT NULL,
+    PRIMARY KEY(snapshot_id, product_num),
+    FOREIGN KEY(product_num) REFERENCES Product(product_num),
+    FOREIGN KEY(snapshot_id) REFERENCES InventorySnapshotRecord(snapshot_id)
+);
+
+CREATE TABLE IF NOT EXISTS ItemVariance(
+	snapshot_id INT NOT NULL,
+    internal_num VARCHAR(20) NOT NULL,
+    expected_quantity DECIMAL(10,3) NOT NULL,
+    counted_quantity DECIMAL(10,3) NOT NULL,
+    PRIMARY KEY(snapshot_id, internal_num),
+    FOREIGN KEY(snapshot_id) REFERENCES InventorySnapshotRecord(snapshot_id),
+	FOREIGN KEY(internal_num) REFERENCES Item(internal_num)
+);
+
 SHOW TABLES;

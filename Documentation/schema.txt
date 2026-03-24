@@ -22,3 +22,14 @@ Managers:
 InventoryTransaction:
     transaction_num(PK), internal_num(FK), quantity, date, Type, Manager_ID(FK), invoice_num(FK)
 
+
+
+
+
+
+approved -> denied  | Waste, USE -> add      |  RECIEVE, ADJUST -> subtract
+denied -> approved  | Waste, USE -> subtract |  RECIEVE, ADJUST -> add
+pending -> approved | Waste, USE -> subtract |  RECIEVE, ADJUST -> add
+pending -> denied   | Waste, USE -> 0        |  RECIEVE, ADJUST -> 0
+
+
