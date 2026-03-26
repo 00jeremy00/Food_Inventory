@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS InvoiceLine(
 	invoice_id INT NOT NULL,
     product_num INT NOT NULL,
     quantity DECIMAL(10,3) NOT NULL,
+    line_price DECIMAL(10,3) NOT NULL,
     PRIMARY KEY (invoice_id, product_num),
     FOREIGN KEY (invoice_id) REFERENCES Invoice (invoice_id),
     FOREIGN KEY (product_num) REFERENCES Product (product_num)

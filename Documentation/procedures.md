@@ -171,18 +171,39 @@ Inserts employee into employee  table
 - Verify manager_status is not NULL
 - Insert new employee into Employee table
 
+## addInvoice
+Inserts an invoice into the Invoice table
+
+### Input Parameters
+1. new_invoice: invoice number
+2. new_date: date the invoice came in
+3. new_vendor: vendor who sent the invoice
+
+### Goals
+- Verifies new_vendor represents a valid vendor
+- Verifies new_invoice is a valid string and that there is no invoice from new_vendor with the same invoice number
+- Verify that new_date is valid
+- Insert new invoice into Invoice table
 
 ## addInvoiceLine
 Adds record in InvoiceLine table which describes products that are received from an vendor associated by an invoice.
 
+### Input Parameters
+1. new_invoice: invoice id for line item
+2. new_product_num: product number of the product being received
+3. new_quantity: amount of product being received in order units
+4. new_line_price: total price for new_quantity number of products
+
+
 ### Goals
-1. Ensure invoice_num is valid
-2. Ensure that the associated invoice has not already been APPROVED or DENIED
-3. Validate manager approval credentials
-4. Validate that product_num is associated with a valid product
-5. Verify that quantity incoming is strictly positive
-6. Verify that the vendor associated with the invoice sells the product
-7. Select necceary information from product to convert new_quantity to internal units
-8. Convert total price to price per internal unit
-9. Perform insertion into InvoiceLine with price and quantity in terms of initial input
-10. Insert into InventoryTransaction with price and quantity in terms of internal units
+- Ensure invoice_id is valid
+- Ensure that the associated invoice has not already been APPROVED or DENIED
+- Validate manager creator credentials
+- Validate that product_num is associated with a valid product
+- Verify that quantity incoming is strictly positive
+- Verify that the vendor associated with the invoice sells the product
+- Select necceary information from product to convert new_quantity to internal units
+- Convert total price to price per internal unit
+- Start transaction before inserts so either both occur or neither
+- Perform insertion into InvoiceLine with price and quantity in terms of initial input
+- Insert into InventoryTransaction with price and quantity in terms of internal units

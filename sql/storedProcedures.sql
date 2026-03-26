@@ -898,15 +898,34 @@ CREATE PROCEDURE addInvoice(
 BEGIN
 	DECLARE v_count INT;
     
+    IF new_vendor IS NULL AND TRIM(new_vendor) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = '';
+    END IF;
+    
+	SELECT COUNT(*)
+    INTO v_count
+    FROM Vendor
+    WHERE vendor_num = new_vendor;
+    
+    -- verifies that the vendor is valid
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'invalid vendor number';	
+	END IF;
+    
     SELECT COUNT(*)
     INTO v_count
     FROM Invoice
-    WHERE invoice_num = new_invoice;
+    WHERE invoice_num = new_invoice
+    AND vendor_num = new_vendor;
     
     -- verifies invoice number is valid
     IF new_invoice IS NULL OR TRIM(new_invoice) = '' THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'invoice number needed for invoice';
+        
+	-- verifies that an invoice with the same invoice num and vendor does not exist
 	ELSEIF v_count <> 0 THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'invoice number in use';
@@ -916,16 +935,6 @@ BEGIN
     IF new_date IS NULL THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'invalid date';	
-	END IF;
-    
-	SELECT COUNT(*)
-    INTO v_count
-    FROM Vendor
-    WHERE vendor_num = new_vendor;
-    
-    IF v_count = 0 THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'invalid vendor number';	
 	END IF;
     
     INSERT INTO Invoice(
@@ -946,40 +955,77 @@ BEGIN
 END $$
 
 CREATE PROCEDURE addInvoiceLine(
-	IN new_invoice VARCHAR(20),
-    IN new_product_num VARCHAR(64),
-    IN new_quantity DECIMAL(10,3)
+    IN new_invoice INT,
+    IN new_product_num INT,
+    IN new_quantity DECIMAL(10,3),
+    IN creator VARCHAR(20),
+    IN new_line_price DECIMAL(10,3)
 )
 BEGIN
-	DECLARE v_count INT;
+    DECLARE v_count INT;
     DECLARE new_internal_num VARCHAR(20);
     DECLARE new_product_price DECIMAL(10,3);
     DECLARE invoice_status VARCHAR(20);
     DECLARE product_vendor VARCHAR(6);
     DECLARE invoice_vendor VARCHAR(6);
     DECLARE v_factor DECIMAL(10,3);
-    
+    DECLARE v_internal_quantity DECIMAL(10,3);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    -- ensure invoice id is given
+    IF new_invoice IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No invoice number given';
+    END IF;
     
     SELECT COUNT(*)
     INTO v_count
     FROM Invoice
-    WHERE invoice_num = new_invoice;
+    WHERE invoice_id = new_invoice;
     
-    -- verifies invoice number is valid
+    -- verifies invoice exists
     IF v_count = 0 THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'invoice not found';
-	END IF;
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invoice not found';
+    END IF;
     
     SELECT approval_status
     INTO invoice_status
     FROM Invoice
-    WHERE invoice_num = new_invoice;
+    WHERE invoice_id = new_invoice;
     
-    IF invoice_status <> 'PENDING' OR invoice_status IS NULL THEN
-		SIGNAL SQLSTATE '45000'
+    IF invoice_status IS NULL OR invoice_status <> 'PENDING' THEN
+        SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Invoice must be pending to add invoice line items';
+    END IF;
+    
+    -- validate price of invoice line
+    IF new_line_price IS NULL OR new_line_price <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'line price for invoice line invalid';
 	END IF;
+    
+    IF creator IS NULL OR TRIM(creator) = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Inventory transaction requires creator';
+    END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Employee
+    WHERE employee_num = creator
+    AND is_manager = TRUE;
+    
+    -- verifies that creator is a valid manager
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid employee number for creator';
+    END IF;
     
     SELECT COUNT(*)
     INTO v_count
@@ -988,19 +1034,17 @@ BEGIN
 
     -- verifies product number is valid
     IF v_count = 0 THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'product number not found';
-        
-	-- verifies quantity is valid
-	ELSEIF new_quantity <= 0 OR new_quantity IS NULL THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'invoice quantity must be strictly positive';	
-	END IF;
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product number not found';
+    ELSEIF new_quantity IS NULL OR new_quantity <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invoice quantity must be strictly positive';
+    END IF;
     
     SELECT vendor_num
     INTO invoice_vendor
     FROM Invoice
-    WHERE invoice_num = new_invoice;
+    WHERE invoice_id = new_invoice;
     
     SELECT vendor_num
     INTO product_vendor
@@ -1009,71 +1053,74 @@ BEGIN
     
     -- checks that invoice's vendor matches product's vendor
     IF invoice_vendor IS NULL OR TRIM(invoice_vendor) = '' THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Invoice vendor is ilegal';
-	ELSEIF product_vendor IS NULL OR TRIM(product_vendor) = '' THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Product vendor is ilegal';
-	ELSEIF product_vendor <> invoice_vendor THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'product and invoice vendors do not match';
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invoice does not list vendor';
+    ELSEIF product_vendor IS NULL OR TRIM(product_vendor) = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product vendor is invalid';
+    ELSEIF product_vendor <> invoice_vendor THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product and invoice vendors do not match';
     END IF;
     
-    INSERT INTO InvoiceLine(
-		invoice_num,
-        product_num,
-        quantity
-    ) VALUES(
-		new_invoice,
-        new_product_num,
-        new_quantity
-    );
-    
-    SELECT internal_num, price, conversion_factor
-    INTO new_internal_num, new_product_price, v_factor
+    SELECT internal_num, conversion_factor
+    INTO new_internal_num, v_factor
     FROM Product
     WHERE product_num = new_product_num;
     
     -- verifies data from product is valid
     IF new_internal_num IS NULL THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'item internal number not found';
-	ELSEIF new_product_price <= 0 OR new_product_price IS NULL THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'price must be stricly positive';
-	ELSEIF v_factor <= 0 OR v_factor IS NULL THEN
-			SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'conversion factor must be stricly positive';	
-	END IF;
-    
-	SET new_quantity = new_quantity * v_factor;
-	SET new_product_price = new_product_price / new_quantity;
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Item internal number not found';
+    ELSEIF v_factor IS NULL OR v_factor <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Conversion factor must be strictly positive';
+    END IF;
 
+    SET v_internal_quantity = new_quantity * v_factor;
+    SET new_product_price = new_line_price / v_internal_quantity;
+
+    START TRANSACTION;
+    
+    INSERT INTO InvoiceLine(
+        invoice_id,
+        product_num,
+        quantity,
+        line_price
+    ) VALUES(
+        new_invoice,
+        new_product_num,
+        new_quantity,
+        new_line_price
+    );
     
     INSERT INTO InventoryTransaction(
-		internal_num,
-		transaction_type,
-		quantity,
-		transaction_date,
-		approved_by,
-		approval_status,
-		invoice_num,
-		product_num,
-		price_per_unit,
-		reason
+        internal_num,
+        transaction_type,
+        quantity,
+        transaction_date,
+        approved_by,
+        created_by,
+        approval_status,
+        invoice_id,
+        product_num,
+        price_per_unit,
+        reason
     ) VALUES(
-		new_internal_num,
+        new_internal_num,
         'RECEIVE',
-        new_quantity,
+        v_internal_quantity,
         CURRENT_TIMESTAMP,
         NULL,
+        creator,
         'PENDING',
         new_invoice,
         new_product_num,
         new_product_price,
         NULL
     );
-    
+
+    COMMIT;
 END $$
 
 
