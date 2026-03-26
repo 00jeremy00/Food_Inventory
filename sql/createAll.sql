@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
 	FOREIGN KEY (invoice_id) REFERENCES Invoice(invoice_id),
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
     FOREIGN KEY (approved_by) REFERENCES Employee(employee_num),
+    FOREIGN KEY (created_by) REFERENCES Employee(employee_num),
     CONSTRAINT valid_type CHECK (transaction_type IN ('RECEIVE', 'USE', 'WASTE', 'ADJUST'))
 );
 
