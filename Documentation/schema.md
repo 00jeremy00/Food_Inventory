@@ -178,6 +178,29 @@ This table aggregates variance at the internal item level, allowing comparison a
 
 ---
 
+
+## Recipe
+Describes possible recipes that can be made. 
+
+### Columns
+- **recipe_num(INT)**: Unique identifier for recipe (PRIMARY KEY, AUTO_INCREMENT)
+- **recipe_name(VARCHAR(64))**: Name of the recipe
+- **is_active(BOOLEAN)**: True if active recipe otherwie False
+
+---
+
+## Ingredient
+Lists the ingredients that contribute to a recipe to keep track of recipe usage.
+
+### Columns
+- **recipe_num(INT)**: identifies which recipe this ingredient is for
+- **internal_num(VARCHAR(20))**: the ingredient that the recipe is refering to
+- **quantity(DECIMAL(10,3))**: quantity of ingredient used in the recipe
+
+### Primary Key
+- **(recipe_num, internal_num)**: Composite primary key ensuring no more than one item can be assigned to a recipe 
+---
+
 ## Relationship Summary
 
 - Each **Item** belongs to one **Category**

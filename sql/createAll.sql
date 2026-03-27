@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS Invoice(
     approved_by VARCHAR(20),
     FOREIGN KEY (vendor_num) REFERENCES Vendor(vendor_num),
     FOREIGN KEY (approved_by) REFERENCES Employee(employee_num),
-    CHECK valid_status CHECK (approval_status IN ('APPROVED', 'PENDING', 'DENIED'))
+    CONSTRAINT valid_status CHECK (approval_status IN ('APPROVED', 'PENDING', 'DENIED'))
 );
 
 CREATE TABLE IF NOT EXISTS InvoiceLine(
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
     FOREIGN KEY (approved_by) REFERENCES Employee(employee_num),
     FOREIGN KEY (created_by) REFERENCES Employee(employee_num),
     CONSTRAINT valid_transaction_type CHECK (transaction_type IN ('RECEIVE', 'USE', 'WASTE', 'ADJUST')),
-    CONSTRAINT valid_status CHECK (approval_status IN ('APPROVED', 'PENDING', 'DENIED'),
+    CONSTRAINT valid_trans_status CHECK (approval_status IN ('APPROVED', 'PENDING', 'DENIED')),
 	CONSTRAINT transaction_price_positive CHECK (price_per_unit > 0)
 );
 
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS InventorySnapshotRecord(
     recorded_by VARCHAR(20) NOT NULL,
     notes VARCHAR(255),
     FOREIGN KEY (recorded_by) REFERENCES Employee(employee_num),
-    CONSTRAINT valid_status CHECK (snapshot_status IN ('PENDING', 'COMPLETED')
+    CONSTRAINT valid_snap_status CHECK (snapshot_status IN ('PENDING', 'COMPLETED'))
 );
 
 CREATE TABLE IF NOT EXISTS InventorySnapshot(
@@ -113,8 +113,8 @@ CREATE TABLE IF NOT EXISTS InventorySnapshot(
     PRIMARY KEY(snapshot_id, product_num),
     FOREIGN KEY(product_num) REFERENCES Product(product_num),
     FOREIGN KEY(snapshot_id) REFERENCES InventorySnapshotRecord(snapshot_id),
-    CONSTRAINT expected_quantity_positive CHECK (expected_quantity >= 0),
-    CONSTRAINT counted_quantity_positive CHECK (counted_quantity >= 0)
+    CONSTRAINT expected_product_positive CHECK (expected_quantity >= 0),
+    CONSTRAINT counted_product_positive CHECK (counted_quantity >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS ItemVariance(
@@ -125,8 +125,21 @@ CREATE TABLE IF NOT EXISTS ItemVariance(
     PRIMARY KEY(snapshot_id, internal_num),
     FOREIGN KEY(snapshot_id) REFERENCES InventorySnapshotRecord(snapshot_id),
 	FOREIGN KEY(internal_num) REFERENCES Item(internal_num),
-    CONSTRAINT expected_quantity_positive CHECK (expected_quantity >= 0),
-    CONSTRAINT counted_quantity_positive CHECK (counted_quantity >= 0)
+    CONSTRAINT expected_item_positive CHECK (expected_quantity >= 0),
+    CONSTRAINT counted_item_positive CHECK (counted_quantity >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS Recipe(
+	recipe_num INT AUTO_INCREMENT PRIMARY KEY,
+    recipe_name VARCHAR(64) NOT NULL,
+    is_active BOOLEAN NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Ingredient(
+	recipe_num INT NOT NULL,
+    internal_num VARCHAR(64) NOT NULL,
+    quantity DECIMAL(10,3) NOT NULL,
+    CONSTRAINT quantity_positive CHECK (quantity > 0)
 );
 
 SHOW TABLES;
