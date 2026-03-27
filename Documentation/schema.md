@@ -191,3 +191,120 @@ This table aggregates variance at the internal item level, allowing comparison a
 - Each **InventorySnapshotRecord** is managed by one **Employee**
 - Each **InventorySnapshot** stores product-level counts for one snapshot
 - Each **ItemVariance** stores item-level counts for one snapshot
+
+---
+# ER Diagram Code
+Code to ER Diagram for dbdiagram.io
+Table Category {
+  category_name varchar(64) [pk]
+}
+
+Table Item {
+  internal_num varchar(20) [pk]
+  internal_name varchar(64) [not null]
+  category varchar(64) [not null]
+  internal_unit varchar(20) [not null]
+}
+
+Table Vendor {
+  vendor_num varchar(6) [pk]
+  vendor_name varchar(64) [not null]
+  phone_number varchar(20)
+  email varchar(64)
+  website varchar(255)
+}
+
+Table Product {
+  product_num int [pk, increment]
+  vendor_pnum varchar(64) [not null]
+  vendor_pname varchar(255) [not null]
+  internal_num varchar(20) [not null]
+  purchase_unit varchar(20) [not null]
+  vendor_num varchar(6) [not null]
+  price decimal(10,2) [not null]
+  conversion_factor decimal(10,3) [not null]
+}
+
+Table Employee {
+  employee_num varchar(20) [pk]
+  employee_name varchar(64) [not null]
+  is_manager boolean [not null]
+}
+
+Table Invoice {
+  invoice_id int [pk, increment]
+  invoice_num varchar(20) [not null]
+  invoice_date date [not null]
+  vendor_num varchar(6) [not null]
+  approval_status enum('APPROVED', 'PENDING', 'DENIED') [not null, default: 'PENDING']
+  approved_by varchar(20)
+}
+
+Table InvoiceLine {
+  invoice_id int [pk]
+  product_num int [pk]
+  quantity decimal(10,3) [not null]
+  line_price decimal(10,3) [not null]
+}
+
+Table Inventory {
+  internal_num varchar(20) [pk]
+  quantity decimal(10,3) [not null, default: 0.0]
+}
+
+Table InventoryTransaction {
+  transaction_num int [pk, increment]
+  internal_num varchar(20) [not null]
+  transaction_type enum('RECEIVE', 'USE', 'WASTE', 'ADJUST') [not null]
+  quantity decimal(10,3) [not null]
+  transaction_date datetime [not null, default: `CURRENT_TIMESTAMP`]
+  approved_by varchar(20)
+  created_by varchar(20)
+  approval_status enum('APPROVED', 'PENDING', 'DENIED') [not null, default: 'PENDING']
+  invoice_id int
+  product_num int
+  price_per_unit decimal(10,3)
+  reason varchar(64)
+}
+
+Table InventorySnapshotRecord {
+  snapshot_id int [pk, increment]
+  snapshot_time datetime [not null]
+  previous_snapshot int
+  snapshot_status enum('PENDING', 'COMPLETED') [not null, default: 'PENDING']
+  manager_num varchar(20) [not null]
+  notes varchar(255)
+}
+
+Table InventorySnapshot {
+  snapshot_id int [pk]
+  product_num int [pk]
+  expected_quantity decimal(10,3) [not null]
+  counted_quantity decimal(10,3) [not null]
+}
+
+Table ItemVariance {
+  snapshot_id int [pk]
+  internal_num varchar(20) [pk]
+  expected_quantity decimal(10,3) [not null]
+  counted_quantity decimal(10,3) [not null]
+}
+
+Ref: Item.category > Category.category_name
+Ref: Product.vendor_num > Vendor.vendor_num
+Ref: Product.internal_num > Item.internal_num
+Ref: Invoice.vendor_num > Vendor.vendor_num
+Ref: Invoice.approved_by > Employee.employee_num
+Ref: InvoiceLine.invoice_id > Invoice.invoice_id
+Ref: InvoiceLine.product_num > Product.product_num
+Ref: Inventory.internal_num > Item.internal_num
+Ref: InventoryTransaction.product_num > Product.product_num
+Ref: InventoryTransaction.invoice_id > Invoice.invoice_id
+Ref: InventoryTransaction.internal_num > Item.internal_num
+Ref: InventoryTransaction.approved_by > Employee.employee_num
+Ref: InventoryTransaction.created_by > Employee.employee_num
+Ref: InventorySnapshotRecord.manager_num > Employee.employee_num
+Ref: InventorySnapshot.product_num > Product.product_num
+Ref: InventorySnapshot.snapshot_id > InventorySnapshotRecord.snapshot_id
+Ref: ItemVariance.snapshot_id > InventorySnapshotRecord.snapshot_id
+Ref: ItemVariance.internal_num > Item.internal_num 
