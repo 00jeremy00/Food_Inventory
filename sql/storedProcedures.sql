@@ -27,10 +27,13 @@ BEGIN
     DECLARE v_product_num INT;
     DECLARE v_invoice_vendor VARCHAR(6);
     DECLARE v_vendor VARCHAR(6);
+    DECLARE v_price DECIMAL(10,3);
+    DECLARE v_factor DECIMAL(10,3);
     DECLARE done INT DEFAULT FALSE;
 
     DECLARE cur CURSOR FOR				-- gets transaction info for transactions of selected invoice
-        SELECT transaction_num, internal_num, quantity, product_num
+        SELECT transaction_num, internal_num, quantity, product_num, 
+			price_per_unit
         FROM InventoryTransaction
         WHERE invoice_id = p_invoice_id
           AND transaction_type = 'RECEIVE'
@@ -107,7 +110,8 @@ BEGIN
 
     read_loop: LOOP
         FETCH cur 
-        INTO v_transaction_num, v_internal_num, v_transaction_quantity, v_product_num;
+        INTO v_transaction_num, v_internal_num, 
+			v_transaction_quantity, v_product_num, v_price;
         IF done THEN
             LEAVE read_loop;
         END IF;
@@ -117,6 +121,11 @@ BEGIN
             INSERT INTO Inventory (internal_num, quantity)
             VALUES (v_internal_num, 0)
             ON DUPLICATE KEY UPDATE internal_num = internal_num;
+            
+            IF v_product_num IS NULL OR TRIM(v_product_num) THEN
+				SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'tranaction does not have product number';
+            END IF;
             
             SELECT  COUNT(*)
             INTO v_count
@@ -129,6 +138,16 @@ BEGIN
                 SET MESSAGE_TEXT = 'product number invalid';
 			END IF;
             
+            SELECT conversion_factor
+            INTO v_factor
+            FROM Product
+            WHERE product_num = v_product_num;
+            
+            IF v_factor IS NULL OR v_factor <= 0 THEN
+				SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'conversion factor is invalid';
+			END IF;
+            
             SELECT vendor_num
             INTO v_vendor
             FROM Product
@@ -138,6 +157,17 @@ BEGIN
 				SIGNAL SQLSTATE '45000'
                 SET MESSAGE_TEXT = 'Invoice\'s vendor does not sell the transaction\'s product';
 			END IF;
+            
+            -- validates price and conversion factor
+            IF v_price IS NULL OR v_price <= 0 THEN
+				SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Invalid transaction product price';
+			END IF;
+            
+            -- update product price
+            UPDATE Product
+            SET price = v_price * v_factor
+            WHERE product_num = v_product_num;
 
             SELECT quantity
             INTO v_inventory_quantity
@@ -148,6 +178,7 @@ BEGIN
             UPDATE Inventory
             SET quantity = v_inventory_quantity + v_transaction_quantity
             WHERE internal_num = v_internal_num;
+            
         END IF;
 		
         -- updates inventoryTransaction's
