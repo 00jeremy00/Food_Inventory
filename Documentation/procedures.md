@@ -5,7 +5,7 @@ These proceudres are the primary way that the database should be interacted with
 # Procedures
 
 ## resolveInvoice
-Finalizes a pending invoice by changing its status to APPROVED or DENIED and passes that finalization down to the corresponding InventoryTransactions related to the invoice, and if the invoice is being approved, updates inventory levels.
+Finalizes a pending invoice by changing its status to APPROVED or DENIED and passes that finalization down to the corresponding InventoryTransactions related to the invoice, and if the invoice is being approved, updates inventory levels. Given that the invoice is approved, it will also update price in product to keep prices current.
 
 ## Input Parameters
 1. invoice_id: identifier of the invoice that is being resolved
@@ -16,11 +16,14 @@ Finalizes a pending invoice by changing its status to APPROVED or DENIED and pas
 - Ensures invoice_id is valid.
 - Validates that invoice has not already been finalized
 - Validate that the employee number for approval is a valid employee with manager status
-- Validate that the finalizati fon state is either APPROVED or DENIED
+- Validate that the final state is either APPROVED or DENIED
 - Verify that the transactions associated with the invoice_id have valid product numbers associated with the invoice's vendor.
-- Update the inventory number associated with that item
+- Update price in product table if invoice is approved
+- Update the inventory number associated with that item if invoice is approved
 - Update inventory transaction status
 - Update invoice status
+
+---
 
 ## resolveInventoryTransaction
 Finalizes inventory transaction and update Inventory levels associated with that item given the statuss is being updated to APPROVED. Note that all RECEIVE transactions must be processed by resolving the invoice.
@@ -44,6 +47,8 @@ Finalizes inventory transaction and update Inventory levels associated with that
 - Update inventory with the update quantity
 - Update status of the transaction
 
+---
+
 ## createUseTransaction
 Creates an inventory transaction of USE type, recording item, quantity, creator of the transaction and product number which may be NULL if unknown.
 
@@ -62,6 +67,8 @@ Creates an inventory transaction of USE type, recording item, quantity, creator 
 - Verify that the price and conversion_factor for the product is postive
 - Given product_num isn't null then converts price per product unit to price per internal unit
 - Insert into InventoryTransaction
+
+---
 
 ## createAdjustTransaction
 Creates an inventory transaction of ADJUST type, recording item, quantity, creator of the transaction, reason for adjustment and product number which may be NULL if unknown.
@@ -84,6 +91,8 @@ Creates an inventory transaction of ADJUST type, recording item, quantity, creat
 - Sets transaction price in terms of internal units
 - Inserts into InventoryTransaction
 
+---
+
 ## createWasteTransaction
 Creates an inventory transaction of WASTE type, recording item, quantity, creator of the transaction, reason for adjustment and product number which may be NULL if unknown.
 ### Input Parameters
@@ -102,6 +111,8 @@ Creates an inventory transaction of WASTE type, recording item, quantity, creato
 - Validates products price and conversion factor and converts price to internal units
 - Inserts into InventoryTransaction
 
+---
+
 ## addItem
 Adds an internal item into the Item table.
 
@@ -117,6 +128,8 @@ Adds an internal item into the Item table.
 - Verify that you the category is valid and in Category table
 - Verify that the new_unit is not NULL or empty
 - Insert into Item
+
+---
 
 ## addProduct
 Inserts new product into the product table.
@@ -142,6 +155,8 @@ Inserts new product into the product table.
 - Veirfy that new_price is strictly positve and not NULL
 - Inesrt into Product
 
+---
+
 ## addVnedor
 Inserts vendor into vendor table.
 
@@ -157,6 +172,8 @@ Inserts vendor into vendor table.
 - Verify that new_name is a valid string
 - Insert into new vendor into Vendor table
 
+---
+
 ## addEmployee
 Inserts employee into employee  table
 
@@ -170,6 +187,8 @@ Inserts employee into employee  table
 - Verify that new_name is a valid string
 - Verify manager_status is not NULL
 - Insert new employee into Employee table
+
+---
 
 ## addInvoice
 Inserts an invoice into the Invoice table
@@ -185,6 +204,8 @@ Inserts an invoice into the Invoice table
 - Verify that new_date is valid
 - Insert new invoice into Invoice table
 
+---
+
 ## addInvoiceLine
 Adds record in InvoiceLine table which describes products that are received from an vendor associated by an invoice.
 
@@ -193,7 +214,6 @@ Adds record in InvoiceLine table which describes products that are received from
 2. new_product_num: product number of the product being received
 3. new_quantity: amount of product being received in order units
 4. new_line_price: total price for new_quantity number of products
-
 
 ### Goals
 - Ensure invoice_id is valid

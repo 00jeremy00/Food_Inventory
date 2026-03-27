@@ -1,0 +1,193 @@
+# Restaurant Inventory Schema
+
+Table-by-table description of the schema used by the inventory system.
+
+---
+
+## Category
+Provides a way to categorize internal inventory items.
+
+### Columns
+- **category_name (VARCHAR(64))**: Name of the category (PRIMARY KEY)
+
+---
+
+## Item
+Represents internally tracked inventory items.
+
+This table allows the system to aggregate multiple vendor products into a single internal item.  
+For example, if a recipe requires 2 quarts of whipping cream, the system may fulfill that using inventory sourced from different vendors, all mapped to the same internal item.
+
+### Columns
+- **internal_num (VARCHAR(20))**: Unique identifier for the item (PRIMARY KEY)
+- **internal_name (VARCHAR(64))**: Readable name of the item used internally
+- **category (VARCHAR(64))**: Category of the item (FOREIGN KEY → Category.category_name)
+- **internal_unit (VARCHAR(20))**: Unit of measurement used for internal inventory tracking and transactions
+
+---
+
+## Vendor
+Represents companies that supply products to the inventory system.
+
+### Columns
+- **vendor_num (VARCHAR(6))**: Unique identifier for the vendor (PRIMARY KEY)
+- **vendor_name (VARCHAR(64))**: Name of the vendor
+- **phone_number (VARCHAR(20))**: Phone number of the vendor
+- **email (VARCHAR(64))**: Email address of the vendor
+- **website (VARCHAR(255))**: URL of the vendor's website
+
+---
+
+## Product
+Represents vendor-specific products that are used to supply internal inventory items.
+
+This table links vendor products to internal items and defines how purchased quantities are converted into internally tracked units.
+
+### Columns
+- **product_num (INT)**: Unique identifier for the product (PRIMARY KEY, AUTO_INCREMENT)
+- **vendor_pnum (VARCHAR(64))**: Product identifier used by the vendor
+- **vendor_pname (VARCHAR(255))**: Name of the product as defined by the vendor
+- **internal_num (VARCHAR(20))**: Internal item associated with the product (FOREIGN KEY → Item.internal_num)
+- **purchase_unit (VARCHAR(20))**: Unit in which the product is purchased
+- **vendor_num (VARCHAR(6))**: Vendor supplying the product (FOREIGN KEY → Vendor.vendor_num)
+- **price (DECIMAL(10,2))**: Price of the product per purchase unit
+- **conversion_factor (DECIMAL(10,3))**: Factor used to convert purchased units into internal units
+
+Example:  
+If a product is purchased as a 200 lb case, then 1 purchase unit × 200 = 200 internal units.
+
+---
+
+## Employee
+Represents employees in the system, including managers responsible for approving invoices, transactions, and snapshots.
+
+### Columns
+- **employee_num (VARCHAR(20))**: Unique identifier for an employee (PRIMARY KEY)
+- **employee_name (VARCHAR(64))**: Name of the employee
+- **is_manager (BOOLEAN)**: Indicates whether the employee has manager privileges
+
+---
+
+## Invoice
+Stores metadata for invoices submitted by vendors.
+
+### Columns
+- **invoice_id (INT)**: Unique internal identifier for the invoice (PRIMARY KEY, AUTO_INCREMENT)
+- **invoice_num (VARCHAR(20))**: Identifier assigned to the invoice by the vendor
+- **invoice_date (DATE)**: Date the invoice was received or recorded
+- **vendor_num (VARCHAR(6))**: Vendor who submitted the invoice (FOREIGN KEY → Vendor.vendor_num)
+- **approval_status (ENUM)**: Status of the invoice (`APPROVED`, `PENDING`, `DENIED`), defaults to `PENDING`
+- **approved_by (VARCHAR(20))**: Employee who approved the invoice (FOREIGN KEY → Employee.employee_num); NULL until approved
+
+---
+
+## InvoiceLine
+Stores the individual product line items associated with an invoice.
+
+### Columns
+- **invoice_id (INT)**: Invoice this line belongs to (FOREIGN KEY → Invoice.invoice_id)
+- **product_num (INT)**: Product included on the invoice line (FOREIGN KEY → Product.product_num)
+- **quantity (DECIMAL(10,3))**: Quantity of the product ordered
+- **line_price (DECIMAL(10,3))**: Total price recorded for this invoice line
+
+### Primary Key
+- **(invoice_id, product_num)**: Composite primary key ensuring each product appears at most once per invoice
+
+---
+
+## Inventory
+Stores the current on-hand quantity of each internal item.
+
+### Columns
+- **internal_num (VARCHAR(20))**: Internal item identifier (PRIMARY KEY, FOREIGN KEY → Item.internal_num)
+- **quantity (DECIMAL(10,3))**: Current quantity available; defaults to 0.0
+
+This table represents the current inventory state, while `InventoryTransaction` stores the history of inventory changes.
+
+---
+
+## InventoryTransaction
+Stores the ledger of all inventory activity.
+
+Every change to inventory is recorded here, including receiving products, usage, waste, and manual adjustments.
+
+### Columns
+- **transaction_num (INT)**: Unique identifier for the transaction (PRIMARY KEY, AUTO_INCREMENT)
+- **internal_num (VARCHAR(20))**: Internal item affected by the transaction (FOREIGN KEY → Item.internal_num)
+- **transaction_type (ENUM)**: Type of transaction: `RECEIVE`, `USE`, `WASTE`, or `ADJUST`
+- **quantity (DECIMAL(10,3))**: Quantity associated with the transaction
+- **transaction_date (DATETIME)**: Date and time the transaction was created; defaults to the current timestamp
+- **approved_by (VARCHAR(20))**: Employee who approved the transaction (FOREIGN KEY → Employee.employee_num)
+- **created_by (VARCHAR(20))**: Employee who created the transaction (FOREIGN KEY → Employee.employee_num)
+- **approval_status (ENUM)**: Status of the transaction (`APPROVED`, `PENDING`, `DENIED`), defaults to `PENDING`
+- **invoice_id (INT)**: Related invoice if the transaction came from an invoice receipt (FOREIGN KEY → Invoice.invoice_id, nullable)
+- **product_num (INT)**: Related product involved in the transaction (FOREIGN KEY → Product.product_num, nullable)
+- **price_per_unit (DECIMAL(10,3))**: Unit price associated with the transaction, if applicable
+- **reason (VARCHAR(64))**: Explanation for the transaction, especially useful for waste or manual adjustment cases
+
+### Notes
+- `RECEIVE` transactions may reference an invoice and product
+- `USE`, `WASTE`, and `ADJUST` transactions may not require an invoice
+- A check constraint enforces that transaction types are limited to `RECEIVE`, `USE`, `WASTE`, and `ADJUST`
+
+---
+
+## InventorySnapshotRecord
+Stores metadata for inventory count snapshots.
+
+A snapshot record represents a counting event, including when it occurred, who managed it, and whether it has been completed.
+
+### Columns
+- **snapshot_id (INT)**: Unique identifier for the snapshot record (PRIMARY KEY, AUTO_INCREMENT)
+- **snapshot_time (DATETIME)**: Date and time the snapshot was created
+- **previous_snapshot (INT)**: Identifier of the previous snapshot, if applicable
+- **snapshot_status (ENUM)**: Status of the snapshot record (`PENDING`, `COMPLETED`), defaults to `PENDING`
+- **manager_num (VARCHAR(20))**: Employee responsible for the snapshot (FOREIGN KEY → Employee.employee_num)
+- **notes (VARCHAR(255))**: Optional notes about the snapshot
+
+---
+
+## InventorySnapshot
+Stores product-level expected and counted quantities for a specific snapshot.
+
+This table is used to compare what the system expected to be on hand for each product against what was physically counted.
+
+### Columns
+- **snapshot_id (INT)**: Snapshot record this entry belongs to (FOREIGN KEY → InventorySnapshotRecord.snapshot_id)
+- **product_num (INT)**: Product being counted (FOREIGN KEY → Product.product_num)
+- **expected_quantity (DECIMAL(10,3))**: Quantity the system expected to be on hand
+- **counted_quantity (DECIMAL(10,3))**: Quantity physically counted during the snapshot
+
+### Primary Key
+- **(snapshot_id, product_num)**: Composite primary key ensuring one record per product per snapshot
+
+---
+
+## ItemVariance
+Stores item-level expected and counted quantities for a specific snapshot.
+
+This table aggregates variance at the internal item level, allowing comparison across all vendor products that map to the same internal item.
+
+### Columns
+- **snapshot_id (INT)**: Snapshot record this entry belongs to (FOREIGN KEY → InventorySnapshotRecord.snapshot_id)
+- **internal_num (VARCHAR(20))**: Internal item being evaluated (FOREIGN KEY → Item.internal_num)
+- **expected_quantity (DECIMAL(10,3))**: Expected quantity for the item
+- **counted_quantity (DECIMAL(10,3))**: Counted quantity for the item
+
+### Primary Key
+- **(snapshot_id, internal_num)**: Composite primary key ensuring one variance record per item per snapshot
+
+---
+
+## Relationship Summary
+
+- Each **Item** belongs to one **Category**
+- Each **Product** belongs to one **Vendor**
+- Multiple **Products** may map to a single **Item**
+- Each **Invoice** belongs to one **Vendor**
+- Each **InvoiceLine** belongs to one **Invoice** and one **Product**
+- Each **Inventory** record corresponds to one **Item**
+- Each **InventoryTransaction** affects one **Item**
+- Each **InventorySnapshotRecord** is managed by one **Employee**
+- Each **InventorySnapshot** stores product-level counts for one snapshot
+- Each **ItemVariance** stores item-level counts for one snapshot
