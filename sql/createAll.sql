@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS Product(
     price DECIMAL(10,2) NOT NULL,
     conversion_factor DECIMAL(10,3) NOT NULL,
     FOREIGN KEY (vendor_num) REFERENCES Vendor(vendor_num),
-    FOREIGN KEY (internal_num) REFERENCES Item(internal_num)
+    FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
+    CONSTRAINT price_not_positive CHECK (price > 0)
 );
 
 CREATE TABLE IF NOT EXISTS Employee(
@@ -48,7 +49,8 @@ CREATE TABLE IF NOT EXISTS Invoice(
     approval_status ENUM('APPROVED', 'PENDING', 'DENIED') DEFAULT 'PENDING' NOT NULL,
     approved_by VARCHAR(20),
     FOREIGN KEY (vendor_num) REFERENCES Vendor(vendor_num),
-    FOREIGN KEY (approved_by) REFERENCES Employee(employee_num)
+    FOREIGN KEY (approved_by) REFERENCES Employee(employee_num),
+    CHECK valid_status CHECK (approval_status IN ('APPROVED', 'PENDING', 'DENIED'))
 );
 
 CREATE TABLE IF NOT EXISTS InvoiceLine(
@@ -58,13 +60,15 @@ CREATE TABLE IF NOT EXISTS InvoiceLine(
     line_price DECIMAL(10,3) NOT NULL,
     PRIMARY KEY (invoice_id, product_num),
     FOREIGN KEY (invoice_id) REFERENCES Invoice (invoice_id),
-    FOREIGN KEY (product_num) REFERENCES Product (product_num)
+    FOREIGN KEY (product_num) REFERENCES Product (product_num),
+    CONSTRAINT line_price_positive CHECK (line_price > 0)
 );
 
 CREATE TABLE IF NOT EXISTS Inventory(
 	internal_num VARCHAR(20) PRIMARY KEY,
     quantity DECIMAL(10,3) DEFAULT 0.0 NOT NULL,
-    FOREIGN KEY (internal_num) REFERENCES Item(internal_num)
+    FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
+    CONSTRAINT non_negative_inventory CHECK (quantity >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS InventoryTransaction(
@@ -85,7 +89,9 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
     FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
     FOREIGN KEY (approved_by) REFERENCES Employee(employee_num),
     FOREIGN KEY (created_by) REFERENCES Employee(employee_num),
-    CONSTRAINT valid_type CHECK (transaction_type IN ('RECEIVE', 'USE', 'WASTE', 'ADJUST'))
+    CONSTRAINT valid_transaction_type CHECK (transaction_type IN ('RECEIVE', 'USE', 'WASTE', 'ADJUST')),
+    CONSTRAINT valid_status CHECK (approval_status IN ('APPROVED', 'PENDING', 'DENIED'),
+	CONSTRAINT transaction_price_positive CHECK (price_per_unit > 0)
 );
 
 CREATE TABLE IF NOT EXISTS InventorySnapshotRecord(
@@ -93,9 +99,10 @@ CREATE TABLE IF NOT EXISTS InventorySnapshotRecord(
 	snapshot_time DATETIME NOT NULL,
     previous_snapshot INT NULL,
     snapshot_status ENUM('PENDING', 'COMPLETED') DEFAULT 'PENDING' NOT NULL,
-    manager_num VARCHAR(20) NOT NULL,
+    recorded_by VARCHAR(20) NOT NULL,
     notes VARCHAR(255),
-    FOREIGN KEY (manager_num) REFERENCES Employee(employee_num)
+    FOREIGN KEY (recorded_by) REFERENCES Employee(employee_num),
+    CONSTRAINT valid_status CHECK (snapshot_status IN ('PENDING', 'COMPLETED')
 );
 
 CREATE TABLE IF NOT EXISTS InventorySnapshot(
@@ -105,7 +112,9 @@ CREATE TABLE IF NOT EXISTS InventorySnapshot(
     counted_quantity DECIMAL(10,3) NOT NULL,
     PRIMARY KEY(snapshot_id, product_num),
     FOREIGN KEY(product_num) REFERENCES Product(product_num),
-    FOREIGN KEY(snapshot_id) REFERENCES InventorySnapshotRecord(snapshot_id)
+    FOREIGN KEY(snapshot_id) REFERENCES InventorySnapshotRecord(snapshot_id),
+    CONSTRAINT expected_quantity_positive CHECK (expected_quantity >= 0),
+    CONSTRAINT counted_quantity_positive CHECK (counted_quantity >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS ItemVariance(
@@ -115,7 +124,9 @@ CREATE TABLE IF NOT EXISTS ItemVariance(
     counted_quantity DECIMAL(10,3) NOT NULL,
     PRIMARY KEY(snapshot_id, internal_num),
     FOREIGN KEY(snapshot_id) REFERENCES InventorySnapshotRecord(snapshot_id),
-	FOREIGN KEY(internal_num) REFERENCES Item(internal_num)
+	FOREIGN KEY(internal_num) REFERENCES Item(internal_num),
+    CONSTRAINT expected_quantity_positive CHECK (expected_quantity >= 0),
+    CONSTRAINT counted_quantity_positive CHECK (counted_quantity >= 0)
 );
 
 SHOW TABLES;
