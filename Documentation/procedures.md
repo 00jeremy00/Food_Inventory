@@ -227,3 +227,32 @@ Adds record in InvoiceLine table which describes products that are received from
 - Start transaction before inserts so either both occur or neither
 - Perform insertion into InvoiceLine with price and quantity in terms of initial input
 - Insert into InventoryTransaction with price and quantity in terms of internal units
+
+---
+
+## addRecipe
+Creates a recipe which ingredients can reference.
+
+### Input Parameters
+1. new_recipe_name: name of the new recipe
+2. new_active: True if new recipe is active otherwise false
+
+### Goals
+- Verify that new_recipe_name is a valid string
+- Verify that new_active is not NULL
+- Insert into Recipe
+
+---
+
+## addIngredient
+Creates one ingredient that will be used in a recipe.
+
+### Input Parameters
+1. new_item: item which the ingredient calls for
+2. ingredient_recipe: recipe which this ingredient contributes to
+3. new_quantity: the amount of ingredient the recipe calls for in internal units
+
+### Goals
+- Verify ingredient_recipe is valid and refers to a recipe that exists and is active
+- Verify that new_item string is valid and refers to an item
+- Verify that new_quantity is strictly positive

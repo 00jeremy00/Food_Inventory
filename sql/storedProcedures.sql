@@ -1154,5 +1154,84 @@ BEGIN
     COMMIT;
 END $$
 
+CREATE PROCEDURE addRecipe(
+	IN new_recipe_name VARCHAR(64),
+    IN new_active BOOLEAN
+)
+BEGIN
+	-- validates recipe name
+	IF new_recipe_name IS NULL OR TRIM(new_recipe_name) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Recipe must have name';
+        
+	-- ensures active status is not NULL
+	ELSEIF new_active IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid active status';
+	END IF;
+    
+    INSERT INTO Recipe(
+		recipe_name,
+        is_active
+	) VALUES(
+       TRIM(new_recipe_name),
+       new_active
+	);
+    
+END $$
 
+CREATE PROCEDURE addIngredient(
+	IN new_item VARCHAR(20),
+    IN ingredient_recipe INT,
+    IN new_quantity DECIMAL(10,3)
+)
+BEGIN
+	DECLARE v_count INT;
+    
+    -- verifies recipe number is valid
+    IF ingredient_recipe IS NULL OR ingredient_recipe < 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid Recipe Number';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Recipe
+    WHERE recipe_num = ingredient_recipe;
+    
+    -- verifies recipe number referes to a real recipe
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Recipe not found';
+    
+    -- verifies that item has a valid string
+    ELSEIF new_item IS NULL or TRIM(new_item) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'item number invalid';
+	END IF;
+    
+    SELECT COUNT(*) 
+    INTO v_count
+    FROM Item
+    WHERE internal_num = new_item;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Item does not exist';
+	ELSEIF new_quantity <= 0 OR new_quantity is NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Ingredient quantity is invalid';
+	END IF;
+    
+    INSERT INTO Ingredient(
+		recipe_num,
+		internal_num,
+        quantity
+    ) VALUES(
+		ingredient_recipe,
+		new_item,
+        new_quantity
+    );
+    
+END$$
 DELIMITER ;
