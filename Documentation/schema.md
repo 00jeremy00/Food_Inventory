@@ -94,15 +94,25 @@ Stores the individual product line items associated with an invoice.
 - **(invoice_id, product_num)**: Composite primary key ensuring each product appears at most once per invoice
 
 ---
-
-## Inventory
-Stores the current on-hand quantity of each internal item.
+## ProductInventory
+Stores the running inventory based on products. Only approved transactions can affect ProductInventory.
 
 ### Columns
-- **internal_num (VARCHAR(20))**: Internal item identifier (PRIMARY KEY, FOREIGN KEY → Item.internal_num)
-- **quantity (DECIMAL(10,3))**: Current quantity available; defaults to 0.0 (CHECK quantity is 0 or greater)
+- **product_num(INT)**: Identifies which product is being counted (PRIMARY KEY, FOREIGN KEY → Product.product_num)
+- **quantity(DECIMAL(10,3))**: The ammount of this product in stock
 
-This table represents the current inventory state, while `InventoryTransaction` stores the history of inventory changes.
+---
+
+## PrepPlan
+Stores planned recipe production for a given date.
+
+Prep plans represent expected recipe usage and are used to estimate future inventory needs. It does not directly affect Inventory, but are used to calculate projections and store prep plans to learn/replicate.
+
+### Columns
+- **plan_num (INT)**: Unique identifier for the prep plan (PRIMARY KEY, AUTO_INCREMENT)
+- **recipe_num (INT)**: Recipe to be prepared (FOREIGN KEY → Recipe.recipe_num)
+- **plan_date (DATE)**: Date the recipe is planned to be made
+- **quantity (DECIMAL(10,3))**: Number of times the recipe is planned to be made
 
 ---
 
@@ -113,7 +123,6 @@ Every change to inventory is recorded here, including receiving products, usage,
 
 ### Columns
 - **transaction_num (INT)**: Unique identifier for the transaction (PRIMARY KEY, AUTO_INCREMENT)
-- **internal_num (VARCHAR(20))**: Internal item affected by the transaction (FOREIGN KEY → Item.internal_num)
 - **transaction_type (ENUM)**: Type of transaction: `RECEIVE`, `USE`, `WASTE`, or `ADJUST` (CHECK transaction_type in (`RECEIVE`, `USE`, `WASTE`, `ADJUST`))
 - **quantity (DECIMAL(10,3))**: Quantity associated with the transaction
 - **transaction_date (DATETIME)**: Date and time the transaction was created; defaults to the current timestamp
@@ -123,6 +132,7 @@ Every change to inventory is recorded here, including receiving products, usage,
 - **invoice_id (INT)**: Related invoice if the transaction came from an invoice receipt (FOREIGN KEY → Invoice.invoice_id, nullable)
 - **product_num (INT)**: Related product involved in the transaction (FOREIGN KEY → Product.product_num, nullable)
 - **price_per_unit (DECIMAL(10,3))**: Unit price associated with the transaction, if applicable (CHECK price_per_unit is strictly positive)
+- **plan_num(INT)**: Identifies which plan called for this transaction if it is USE otherwise NULL
 - **reason (VARCHAR(64))**: Explanation for the transaction, especially useful for waste or manual adjustment cases
 
 ### Notes
@@ -162,22 +172,6 @@ This table is used to compare what the system expected to be on hand for each pr
 
 ---
 
-## ItemVariance
-Stores item-level expected and counted quantities for a specific snapshot.
-
-This table aggregates variance at the internal item level, allowing comparison across all vendor products that map to the same internal item.
-
-### Columns
-- **snapshot_id (INT)**: Snapshot record this entry belongs to (FOREIGN KEY → InventorySnapshotRecord.snapshot_id)
-- **internal_num (VARCHAR(20))**: Internal item being evaluated (FOREIGN KEY → Item.internal_num)
-- **expected_quantity (DECIMAL(10,3))**: Expected quantity for the item (CHECK expected_quantity not negative)
-- **counted_quantity (DECIMAL(10,3))**: Counted quantity for the item (CHECK counted_quantity not negative)
-
-### Primary Key
-- **(snapshot_id, internal_num)**: Composite primary key ensuring one variance record per item per snapshot
-
----
-
 
 ## Recipe
 Describes possible recipes that can be made. 
@@ -213,6 +207,7 @@ Lists the ingredients that contribute to a recipe to keep track of recipe usage.
 - Each **InventorySnapshotRecord** is managed by one **Employee**
 - Each **InventorySnapshot** stores product-level counts for one snapshot
 - Each **ItemVariance** stores item-level counts for one snapshot
+- Each **Reipe** may have multiple ingredients which make it
 
 ---
 # ER Diagram Code

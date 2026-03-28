@@ -256,3 +256,4 @@ Creates one ingredient that will be used in a recipe.
 - Verify ingredient_recipe is valid and refers to a recipe that exists and is active
 - Verify that new_item string is valid and refers to an item
 - Verify that new_quantity is strictly positive
+- Insert into Ingredient

@@ -64,16 +64,39 @@ CREATE TABLE IF NOT EXISTS InvoiceLine(
     CONSTRAINT line_price_positive CHECK (line_price > 0)
 );
 
-CREATE TABLE IF NOT EXISTS Inventory(
-	internal_num VARCHAR(20) PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS ProductInventory(
+	product_num INT PRIMARY KEY,
     quantity DECIMAL(10,3) DEFAULT 0.0 NOT NULL,
-    FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
+    FOREIGN KEY (product_num) REFERENCES Product(product_num),
     CONSTRAINT non_negative_inventory CHECK (quantity >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS Recipe(
+	recipe_num INT AUTO_INCREMENT PRIMARY KEY,
+    recipe_name VARCHAR(64) NOT NULL,
+    is_active BOOLEAN NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Ingredient(
+	recipe_num INT NOT NULL,
+    internal_num VARCHAR(20) NOT NULL,
+    quantity DECIMAL(10,3) NOT NULL,
+    CONSTRAINT quantity_positive CHECK (quantity > 0),
+    FOREIGN KEY (recipe_num) REFERENCES Recipe(recipe_num),
+	FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
+    PRIMARY KEY(recipe_num, internal_num)
+    );
+
+CREATE TABLE IF NOT EXISTS PrepPlan(
+	plan_num INT AUTO_INCREMENT PRIMARY KEY,
+    recipe_num INT NOT NULL,
+    plan_date DATETIME NOT NULL,
+    recipe_quantity DECIMAL(10,3) NOT NULL DEFAULT 1,
+    FOREIGN KEY (recipe_num) REFERENCES Recipe(recipe_num)
 );
 
 CREATE TABLE IF NOT EXISTS InventoryTransaction(
 	transaction_num INT AUTO_INCREMENT PRIMARY KEY,
-    internal_num VARCHAR(20) NOT NULL,
 	transaction_type ENUM('RECEIVE', 'USE', 'WASTE', 'ADJUST') NOT NULL,
     quantity DECIMAL(10,3) NOT NULL,
     transaction_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -83,15 +106,17 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
     invoice_id INT,
     product_num INT,
     price_per_unit DECIMAL(10,3),
+    plan_num INT,
     reason VARCHAR(64),
+    FOREIGN KEY(plan_num) REFERENCES PrepPlan(plan_num),
     FOREIGN KEY (product_num) REFERENCES Product(product_num),
 	FOREIGN KEY (invoice_id) REFERENCES Invoice(invoice_id),
-    FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
     FOREIGN KEY (approved_by) REFERENCES Employee(employee_num),
     FOREIGN KEY (created_by) REFERENCES Employee(employee_num),
     CONSTRAINT valid_transaction_type CHECK (transaction_type IN ('RECEIVE', 'USE', 'WASTE', 'ADJUST')),
     CONSTRAINT valid_trans_status CHECK (approval_status IN ('APPROVED', 'PENDING', 'DENIED')),
-	CONSTRAINT transaction_price_positive CHECK (price_per_unit > 0)
+    CONSTRAINT trans_quantity_positive CHECK (quantity > 0),
+    CONSTRAINT trans_price_positive CHECK (price_per_unit > 0 OR price_per_unit IS NULL)
 );
 
 CREATE TABLE IF NOT EXISTS InventorySnapshotRecord(
@@ -117,29 +142,5 @@ CREATE TABLE IF NOT EXISTS InventorySnapshot(
     CONSTRAINT counted_product_positive CHECK (counted_quantity >= 0)
 );
 
-CREATE TABLE IF NOT EXISTS ItemVariance(
-	snapshot_id INT NOT NULL,
-    internal_num VARCHAR(20) NOT NULL,
-    expected_quantity DECIMAL(10,3) NOT NULL,
-    counted_quantity DECIMAL(10,3) NOT NULL,
-    PRIMARY KEY(snapshot_id, internal_num),
-    FOREIGN KEY(snapshot_id) REFERENCES InventorySnapshotRecord(snapshot_id),
-	FOREIGN KEY(internal_num) REFERENCES Item(internal_num),
-    CONSTRAINT expected_item_positive CHECK (expected_quantity >= 0),
-    CONSTRAINT counted_item_positive CHECK (counted_quantity >= 0)
-);
-
-CREATE TABLE IF NOT EXISTS Recipe(
-	recipe_num INT AUTO_INCREMENT PRIMARY KEY,
-    recipe_name VARCHAR(64) NOT NULL,
-    is_active BOOLEAN NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS Ingredient(
-	recipe_num INT NOT NULL,
-    internal_num VARCHAR(64) NOT NULL,
-    quantity DECIMAL(10,3) NOT NULL,
-    CONSTRAINT quantity_positive CHECK (quantity > 0)
-);
 
 SHOW TABLES;
