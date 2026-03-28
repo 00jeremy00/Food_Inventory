@@ -462,19 +462,21 @@ BEGIN
 END $$
 
 CREATE PROCEDURE createAdjustTransaction( 
-    IN adjust_item VARCHAR(20), 
+    IN adjust_product INT, 
     IN trans_quantity DECIMAL(10,3), 
     IN creator VARCHAR(20),
-    IN adjust_reason VARCHAR(64),
-    IN adjust_product_num INT
+    IN adjust_reason VARCHAR(64)
 )
 BEGIN
     DECLARE v_count INT;
-    DECLARE item_verification VARCHAR(20);
     DECLARE v_price DECIMAL(10,3);
     DECLARE v_conversion DECIMAL(10,3);
-    DECLARE trans_product_num INT;
-    
+
+	-- Verifies that product number is not NULL
+	IF adjust_product IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product number needed for adjustment';
+	END IF;
     SELECT COUNT(*)
     INTO v_count
     FROM Employee
@@ -496,62 +498,35 @@ BEGIN
 
     SELECT COUNT(*)
     INTO v_count
-    FROM Item
-    WHERE internal_num = adjust_item;
+    FROM Product
+    WHERE product_num = adjust_product;
     
-    -- ensures transaction is occurring on valid item
+    -- ensures transaction is occurring on valid product
     IF v_count = 0 THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Invalid item number';        
+        SET MESSAGE_TEXT = 'Invalid product number';        
     END IF;
     
-    -- if product number is not given, sets price to NULL
-    IF adjust_product_num IS NULL THEN
-        SET v_price = NULL;
-        SET trans_product_num = NULL;
-    -- otherwise verifies product number is for item and uses that price
-    ELSE 
-        SELECT COUNT(*)
-        INTO v_count
-        FROM Product
-        WHERE product_num = adjust_product_num;
         
-        IF v_count = 0 THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Invalid product number';    
-        END IF;
         
-        SELECT internal_num
-        INTO item_verification
-        FROM Product
-        WHERE product_num = adjust_product_num;
-    
-        -- ensures internal number matches product number
-        IF item_verification <> adjust_item THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Vendor product number does not match internal number given';
-        END IF;
+	SELECT price, conversion_factor
+	INTO v_price, v_conversion
+	FROM Product
+	WHERE product_num = adjust_product;
         
-        SELECT price, conversion_factor
-        INTO v_price, v_conversion
-        FROM Product
-        WHERE product_num = adjust_product_num;
+	-- ensures conversion factor and product price are positive 
+	IF v_conversion <= 0 OR v_conversion IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'Invalid conversion factor';
+	ELSEIF v_price <= 0 OR v_price IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'Invalid product price';
+	END IF;
         
-        -- ensures conversion factor and product price are positive 
-        IF v_conversion <= 0 OR v_conversion IS NULL THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Invalid conversion factor';
-		ELSEIF v_price <= 0 OR v_price IS NULL THEN
-			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Invalid product price';
-        END IF;
-        
-        SET v_price = v_price / v_conversion;
-        SET trans_product_num = adjust_product_num;
-    END IF;
+	SET v_price = v_price / v_conversion;
+	SET trans_product_num = adjust_product;
     
     INSERT INTO InventoryTransaction (
-        internal_num,
         transaction_type,
         quantity,
         transaction_date,
@@ -563,44 +538,49 @@ BEGIN
         reason
     )
     VALUES (
-        adjust_item,
         'ADJUST',
         trans_quantity,
         CURRENT_TIMESTAMP,
         creator,
         'PENDING',
         NULL,
-        trans_product_num,
+        adjust_product,
         v_price,
-        adjust_reason
+        TRIM(adjust_reason)
     );
 END $$
 
 CREATE PROCEDURE createWasteTransaction(
-    IN waste_item VARCHAR(20),
+    IN waste_product INT,
     IN trans_quantity DECIMAL(10,3),
     IN creator VARCHAR(20),
-    IN waste_reason VARCHAR(64),
-    IN waste_product_num INT
+    IN waste_reason VARCHAR(64)
 )
 BEGIN
     DECLARE v_count INT;
-    DECLARE item_verification VARCHAR(20);
     DECLARE v_price DECIMAL(10,3);
     DECLARE v_conversion DECIMAL(10,3);
-    DECLARE trans_product_num INT;
+    
+    -- verifies product being wasted is not null
+    IF waste_product IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Transaction requires valid product';
+	END IF;
     
     SELECT COUNT(*)
     INTO v_count
-    FROM Item
-    WHERE internal_num = waste_item;
+    FROM Product
+    WHERE product_num = waste_product;
     
+    -- verifies transaction quantity is strictly positive and not NULL
     IF trans_quantity <= 0 OR trans_quantity IS NULL THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Waste entry must have quantity greater than 0';
+    
+    -- verifies procut number refers to a valid product
     ELSEIF v_count = 0 THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Invalid item number for waste transaction';
+        SET MESSAGE_TEXT = 'Invalid product number for waste transaction';
     ELSEIF waste_reason IS NULL OR TRIM(waste_reason) = '' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Waste entry must have a reason';
@@ -617,47 +597,26 @@ BEGIN
         SET MESSAGE_TEXT = 'Employee number is invalid';
     END IF;
     
-    -- if product num is null or empty, set price and product_num to null
-    IF waste_product_num IS NULL THEN
-		SET  v_price = NULL;
-        SET trans_product_num = NULL;
-    ELSE 
-        SELECT COUNT(*) 
-        INTO v_count
-        FROM Product
-        WHERE product_num = waste_product_num;
         
-        -- checking that product number is valid
-        IF v_count = 0 THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Invalid product number';
-        END IF;
+	SELECT price, conversion_factor
+	INTO v_price, v_conversion
+	FROM Product
+	WHERE product_num = waste_product;
         
-        SELECT internal_num, price, conversion_factor
-        INTO item_verification, v_price, v_conversion
-        FROM Product
-        WHERE product_num = waste_product_num;
+	-- checks to make sure price is strictly positive and not NULL
+	IF v_price <= 0 OR v_price IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'Invalid product price';
+	-- checks to make sure conversion factor is positive
+	ELSEIF v_conversion <= 0 OR v_conversion IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'Invalid conversion factor';    
+	END IF;
         
-        -- checks to make sure item and product number agree
-        IF item_verification <> waste_item THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Vendor product number does not match internal item number';
-        -- checks to make sure product price is positive
-        ELSEIF v_price <= 0 OR v_price IS NULL THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Invalid product price';
-        -- checks to make sure conversion factor is positive
-        ELSEIF v_conversion <= 0 OR v_conversion IS NULL THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Invalid conversion factor';    
-        END IF;
-        
-        SET v_price = v_price / v_conversion;
-        SET trans_product_num = waste_product_num;
-    END IF;
+	SET v_price = v_price / v_conversion;
+	SET trans_product_num = waste_product;
     
     INSERT INTO InventoryTransaction(
-        internal_num,
         transaction_type,
         quantity,
         transaction_date,
@@ -669,14 +628,13 @@ BEGIN
         price_per_unit
     )
     VALUES (
-        waste_item,
         'WASTE',
         trans_quantity,
         CURRENT_TIMESTAMP,
         creator,
         'PENDING',
         NULL,
-        waste_reason,
+        TRIM(waste_reason),
         trans_product_num,
         v_price
     );
@@ -880,7 +838,6 @@ BEGIN
         new_website
     );
 END $$
-
 
 CREATE PROCEDURE addEmployee(
 	IN new_employee_num VARCHAR(20),
