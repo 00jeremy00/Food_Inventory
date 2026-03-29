@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS Ingredient(
 CREATE TABLE IF NOT EXISTS PrepPlan(
 	plan_num INT AUTO_INCREMENT PRIMARY KEY,
     recipe_num INT NOT NULL,
-    plan_date DATETIME NOT NULL,
+    plan_date DATE NOT NULL,
     recipe_quantity DECIMAL(10,3) NOT NULL DEFAULT 1,
     FOREIGN KEY (recipe_num) REFERENCES Recipe(recipe_num)
 );
@@ -106,7 +106,6 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
     invoice_id INT,
     product_num INT,
     price_per_unit DECIMAL(10,3),
-    plan_num INT,
     reason VARCHAR(64),
     FOREIGN KEY(plan_num) REFERENCES PrepPlan(plan_num),
     FOREIGN KEY (product_num) REFERENCES Product(product_num),

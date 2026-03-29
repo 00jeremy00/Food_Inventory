@@ -174,8 +174,8 @@ CALL resolveInventoryTransaction(22, 'APPROVED', '56881');
 
 
 SELECT * FROM Invoice;
-SELECT * FROM Inventory;
-SELECT * FROM InvoiceLine;
+SELECT * FROM ProductInventory;
+SELECT * FROM Product;
 SELECT * FROM InventoryTransaction
 WHERE transaction_type = 'ADJUST';
 

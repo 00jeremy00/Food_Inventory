@@ -132,7 +132,6 @@ Every change to inventory is recorded here, including receiving products, usage,
 - **invoice_id (INT)**: Related invoice if the transaction came from an invoice receipt (FOREIGN KEY → Invoice.invoice_id, nullable)
 - **product_num (INT)**: Related product involved in the transaction (FOREIGN KEY → Product.product_num, nullable)
 - **price_per_unit (DECIMAL(10,3))**: Unit price associated with the transaction, if applicable (CHECK price_per_unit is strictly positive)
-- **plan_num(INT)**: Identifies which plan called for this transaction if it is USE otherwise NULL
 - **reason (VARCHAR(64))**: Explanation for the transaction, especially useful for waste or manual adjustment cases
 
 ### Notes

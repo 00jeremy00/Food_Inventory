@@ -1,5 +1,5 @@
-DROP PROCEDURE IF EXISTS resolveInventoryTransaction;
 DROP PROCEDURE IF EXISTS resolveInvoice;
+DROP PROCEDURE IF EXISTS resolveInventoryTransaction;
 DROP PROCEDURE IF EXISTS createUseTransaction;
 DROP PROCEDURE IF EXISTS createAdjustTransaction;
 DROP PROCEDURE IF EXISTS createWasteTransaction;
@@ -20,7 +20,6 @@ CREATE PROCEDURE resolveInvoice(
 BEGIN
     DECLARE v_count INT DEFAULT 0;		
     DECLARE v_old_status VARCHAR(20);	-- previous status of invoice
-    DECLARE v_internal_num VARCHAR(20);	-- holds internal nums of all items being updated
     DECLARE v_transaction_num INT;		-- transaction numbers connected to invoice
     DECLARE v_transaction_quantity DECIMAL(10,3);
     DECLARE v_inventory_quantity DECIMAL(10,3);
@@ -32,8 +31,7 @@ BEGIN
     DECLARE done INT DEFAULT FALSE;
 
     DECLARE cur CURSOR FOR				-- gets transaction info for transactions of selected invoice
-        SELECT transaction_num, internal_num, quantity, product_num, 
-			price_per_unit
+        SELECT transaction_num, product_num, quantity, price_per_unit
         FROM InventoryTransaction
         WHERE invoice_id = p_invoice_id
           AND transaction_type = 'RECEIVE'
@@ -46,8 +44,6 @@ BEGIN
         ROLLBACK;
         RESIGNAL;
     END;
-
-    START TRANSACTION;
 
 	-- Ensures invoice num is given
     SELECT COUNT(*)
@@ -77,6 +73,8 @@ BEGIN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Valid manager credentials are necessary to accept invoice';
     END IF;
+
+    START TRANSACTION;
 
     /* lock the invoice row */
     SELECT approval_status
@@ -110,21 +108,20 @@ BEGIN
 
     read_loop: LOOP
         FETCH cur 
-        INTO v_transaction_num, v_internal_num, 
-			v_transaction_quantity, v_product_num, v_price;
+        INTO v_transaction_num, v_product_num, v_transaction_quantity, v_price;
         IF done THEN
             LEAVE read_loop;
         END IF;
 
 		-- invoice aproval must update inventory
         IF p_approval_status = 'APPROVED' THEN
-            INSERT INTO Inventory (internal_num, quantity)
-            VALUES (v_internal_num, 0)
-            ON DUPLICATE KEY UPDATE internal_num = internal_num;
+            INSERT INTO ProductInventory (product_num, quantity)
+            VALUES (v_product_num, 0)
+            ON DUPLICATE KEY UPDATE product_num = v_product_num;
             
-            IF v_product_num IS NULL OR TRIM(v_product_num) THEN
+            IF v_product_num IS NULL THEN
 				SIGNAL SQLSTATE '45000'
-                SET MESSAGE_TEXT = 'tranaction does not have product number';
+                SET MESSAGE_TEXT = 'transaction does not have product number';
             END IF;
             
             SELECT  COUNT(*)
@@ -171,13 +168,13 @@ BEGIN
 
             SELECT quantity
             INTO v_inventory_quantity
-            FROM Inventory
-            WHERE internal_num = v_internal_num
+            FROM ProductInventory
+            WHERE product_num = v_product_num
             FOR UPDATE;
 
-            UPDATE Inventory
+            UPDATE ProductInventory
             SET quantity = v_inventory_quantity + v_transaction_quantity
-            WHERE internal_num = v_internal_num;
+            WHERE product_num = v_product_num;
             
         END IF;
 		
@@ -212,8 +209,6 @@ BEGIN
     DECLARE v_inventory_quantity DECIMAL(10,3);
     DECLARE v_transaction_quantity DECIMAL(10,3);
     DECLARE v_transaction_type VARCHAR(20);
-    DECLARE v_product_item VARCHAR(20);
-    DECLARE v_transaction_item VARCHAR(20);
     DECLARE v_transaction_product INT;
     DECLARE v_creator VARCHAR(20);
 
@@ -223,11 +218,15 @@ BEGIN
         RESIGNAL;
     END;
 
-    START TRANSACTION;
-
+	-- Ensures that resolution status is aprroved or denied
     IF p_new_status NOT IN ('APPROVED', 'DENIED') THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Inventory transaction must be resolved as APPROVED or DENIED';
+	
+    -- ensures that valid transaction number was given
+	ELSEIF p_transaction_num IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid Transaction Number chosen for resolution';  
     END IF;
 
     SELECT COUNT(*)
@@ -235,13 +234,31 @@ BEGIN
     FROM InventoryTransaction
     WHERE transaction_num = p_transaction_num;
 
+	-- makes sure transactionn number matches transaction
     IF v_count = 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Transaction not found';
+	-- ensures that approval is valid and employee num refers to a manager
+	ELSEIF p_approved_by IS NULL OR TRIM(p_approved_by) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Invalid approval credentials';
     END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Employee 
+    WHERE employee_num = p_approved_by
+    AND is_manager = TRUE;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No manager found matching approver credentials';
+	END IF;
 
-    SELECT approval_status, transaction_type, internal_num, quantity, product_num, created_by
-    INTO v_old_status, v_transaction_type, v_transaction_item, v_transaction_quantity, v_transaction_product, v_creator
+    START TRANSACTION;
+    
+    SELECT approval_status, transaction_type, product_num, quantity, created_by
+    INTO v_old_status, v_transaction_type, v_transaction_product, v_transaction_quantity, v_creator
     FROM InventoryTransaction
     WHERE transaction_num = p_transaction_num
     FOR UPDATE;
@@ -249,7 +266,7 @@ BEGIN
 	SELECT COUNT(*) 
     INTO v_count
     FROM Employee
-    WHERE employee_num = p_creator;
+    WHERE employee_num = v_creator;
     
     -- enures tranaction has a valid creator
     IF v_count = 0 THEN
@@ -257,6 +274,7 @@ BEGIN
         SET MESSAGE_TEXT = 'Transaction does not have a valid creator';
 	END IF;
 
+	-- enure transaction has not already been resolved
     IF v_old_status <> 'PENDING' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Resolved transactions cannot be updated';
@@ -269,17 +287,6 @@ BEGIN
     IF v_count = 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Invalid Transaction product number';
-    END IF;
-    
-    SELECT internal_num
-    INTO v_product_item
-    FROM Product
-    WHERE product_num = v_transaction_product;
-    
-    --  verifies product's item number matches the one in the transaction
-    IF v_product_item <> v_transaction_item THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Item associated with product number does not match item number in transaction';
     END IF;
 
 	-- verfies that transaction type is valid
@@ -296,39 +303,19 @@ BEGIN
         SET MESSAGE_TEXT = 'Transaction quantity can only be negative for ADJUST transactions';	
 	END IF;
     
-    
-    SELECT COUNT(*)
-    INTO v_count
-    FROM Product
-    WHERE product_num = v_transaction_product;
-    
-    IF v_count = 0 THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Before a transaction is approved, it must be assigned a product number';
-    END IF;
-
-	SELECT COUNT(*)
-	INTO v_count
-	FROM Employee
-	WHERE employee_num = p_approved_by
-	AND is_manager = TRUE;
-
-	IF v_count = 0 THEN
-		SIGNAL SQLSTATE '45000'
-		SET MESSAGE_TEXT = 'Invalid manager credential';
-	END IF;
-
     IF p_new_status = 'APPROVED' THEN
-        INSERT INTO Inventory (internal_num, quantity)
-        VALUES (v_transaction_item, 0)
-        ON DUPLICATE KEY UPDATE internal_num = internal_num;
-
+		-- ensures that inventory record exists for product
+        INSERT INTO ProductInventory (product_num, quantity)
+        VALUES (v_transaction_product, 0)
+		ON DUPLICATE KEY UPDATE quantity = ProductInventory.quantity;
+        
         SELECT quantity
         INTO v_inventory_quantity
-        FROM Inventory
-        WHERE internal_num = v_transaction_item
+        FROM ProductInventory
+        WHERE product_num = v_transaction_product
         FOR UPDATE;
 
+		-- calculates new inventory number after change
         IF v_transaction_type IN ('WASTE', 'USE') THEN
             SET v_inventory_quantity = v_inventory_quantity - v_transaction_quantity;
 
@@ -336,14 +323,15 @@ BEGIN
             SET v_inventory_quantity = v_inventory_quantity + v_transaction_quantity;
         END IF;
 
+		-- ensure new inventory quantity is not negative
         IF v_inventory_quantity < 0 THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Transaction cannot make inventory negative';
         END IF;
 
-        UPDATE Inventory
+        UPDATE ProductInventory
         SET quantity = v_inventory_quantity
-        WHERE internal_num = v_transaction_item;
+        WHERE product_num = v_transaction_product;
     END IF;
 
 	UPDATE InventoryTransaction
@@ -355,17 +343,19 @@ BEGIN
 END$$
 
 CREATE PROCEDURE createUseTransaction( 
-    IN use_item VARCHAR(20), 
+    IN use_product INT, 
     IN use_quantity DECIMAL(10,3), 
-    IN creator VARCHAR(20),
-    IN use_product_num INT
+    IN creator VARCHAR(20)
 )
 BEGIN
     DECLARE v_count INT;
     DECLARE v_price DECIMAL(10,3);
-    DECLARE trans_product_num INT;
-    DECLARE item_verification VARCHAR(20);
     DECLARE v_conversion DECIMAL(10,3);
+	
+    IF creator IS NULL OR TRIM(creator) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Inventory Tranactions must have creator';
+    END IF;
 
     SELECT COUNT(*)
     INTO v_count
@@ -384,63 +374,33 @@ BEGIN
 
     SELECT COUNT(*)
     INTO v_count
-    FROM Item 
-    WHERE internal_num = use_item;
+    FROM Product 
+    WHERE product_num = use_product;
     
     -- ensures transaction is occurring on an item in the database
     IF v_count = 0 THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Item number is invalid';
+        SET MESSAGE_TEXT = 'Product number does not match valid product';
     END IF;
-    
-    -- if no product num or NULL is given, uses average price
-    IF use_product_num IS NULL THEN
-        SET trans_product_num = NULL;
-        SET v_price  = NULL;
-    ELSE 
-        SELECT COUNT(*)
-        INTO v_count
-        FROM Product
-        WHERE product_num = use_product_num;
 
-        -- ensures valid product number
-        IF v_count = 0 THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Product number is invalid';
-        END IF;
-    
-        SELECT internal_num
-        INTO item_verification
-        FROM Product
-        WHERE product_num = use_product_num;
-    
-        -- ensures that internal item matches product number
-        IF item_verification <> use_item THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Vendor product number does not match internal number given';
-        END IF;
-
-        SELECT price, conversion_factor
-        INTO v_price, v_conversion
-        FROM Product
-        WHERE product_num = use_product_num;
+	SELECT price, conversion_factor
+	INTO v_price, v_conversion
+	FROM Product
+	WHERE product_num = use_product;
         
-        -- ensures that conversion factor is positive
-        IF v_conversion <= 0 OR v_conversion IS NULL THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Invalid conversion factor';
-        -- ensures that product price is positive
-        ELSEIF v_price <= 0 OR v_price IS NULL THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Invalid product price';
-        END IF;
+	-- ensures that conversion factor is positive
+	IF v_conversion <= 0 OR v_conversion IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'Invalid conversion factor';
+	-- ensures that product price is positive
+	ELSEIF v_price <= 0 OR v_price IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'Invalid product price';
+	END IF;
         
-        SET v_price = v_price / v_conversion;
-        SET trans_product_num = use_product_num;
-    END IF;
+	SET v_price = v_price / v_conversion;
 
     INSERT INTO InventoryTransaction (
-        internal_num,
         transaction_type,
         quantity,
         transaction_date,
@@ -450,14 +410,13 @@ BEGIN
         product_num       
     )
     VALUES (
-        item,
         'USE',
         use_quantity,
         CURRENT_TIMESTAMP,
         creator,
         'PENDING',
         v_price,
-        trans_product_num
+        use_product
     );
 END $$
 
@@ -524,7 +483,6 @@ BEGIN
 	END IF;
         
 	SET v_price = v_price / v_conversion;
-	SET trans_product_num = adjust_product;
     
     INSERT INTO InventoryTransaction (
         transaction_type,
@@ -614,7 +572,6 @@ BEGIN
 	END IF;
         
 	SET v_price = v_price / v_conversion;
-	SET trans_product_num = waste_product;
     
     INSERT INTO InventoryTransaction(
         transaction_type,
@@ -635,7 +592,7 @@ BEGIN
         'PENDING',
         NULL,
         TRIM(waste_reason),
-        trans_product_num,
+        waste_product,
         v_price
     );
 END $$
@@ -951,7 +908,6 @@ CREATE PROCEDURE addInvoiceLine(
 )
 BEGIN
     DECLARE v_count INT;
-    DECLARE new_internal_num VARCHAR(20);
     DECLARE new_product_price DECIMAL(10,3);
     DECLARE invoice_status VARCHAR(20);
     DECLARE product_vendor VARCHAR(6);
@@ -1051,16 +1007,13 @@ BEGIN
         SET MESSAGE_TEXT = 'Product and invoice vendors do not match';
     END IF;
     
-    SELECT internal_num, conversion_factor
-    INTO new_internal_num, v_factor
+    SELECT conversion_factor
+    INTO v_factor
     FROM Product
     WHERE product_num = new_product_num;
     
     -- verifies data from product is valid
-    IF new_internal_num IS NULL THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Item internal number not found';
-    ELSEIF v_factor IS NULL OR v_factor <= 0 THEN
+	IF v_factor IS NULL OR v_factor <= 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Conversion factor must be strictly positive';
     END IF;
@@ -1083,7 +1036,6 @@ BEGIN
     );
     
     INSERT INTO InventoryTransaction(
-        internal_num,
         transaction_type,
         quantity,
         transaction_date,
@@ -1095,7 +1047,6 @@ BEGIN
         price_per_unit,
         reason
     ) VALUES(
-        new_internal_num,
         'RECEIVE',
         v_internal_quantity,
         CURRENT_TIMESTAMP,
