@@ -10,7 +10,7 @@ DROP PROCEDURE IF EXISTS addEmployee;
 DROP PROCEDURE IF EXISTS addInvoice;
 DROP PROCEDURE IF EXISTS addInvoiceLine;
 DROP PROCEDURE IF EXISTS addRecipe;
-DROP PROCEDURE IF EXISTS addIngred
+DROP PROCEDURE IF EXISTS addIngredient;
 DELIMITER $$
 
 
@@ -20,7 +20,7 @@ CREATE PROCEDURE resolveInvoice(
     IN p_approved_by VARCHAR(20)		-- manager num who is resolving
 )
 BEGIN
-    DECLARE v_count INT DEFAULT 0;		
+	DECLARE v_count INT DEFAULT 0;		
     DECLARE v_old_status VARCHAR(20);	-- previous status of invoice
     DECLARE v_transaction_num INT;		-- transaction numbers connected to invoice
     DECLARE v_transaction_quantity DECIMAL(10,3);
@@ -1212,12 +1212,13 @@ CREATE PROCEDURE createInventorySnapshot
 (
     IN inventory_snapshot INT,
     IN inventory_product INT,
-    IN counted_quantity DECIMAL(10,3)
+    IN counted_total DECIMAL(10,3)
 )
 BEGIN
     DECLARE v_count INT;
     DECLARE expected_total DECIMAL(10,3);
     DECLARE last_snapshot INT;
+    DECLARE last_count DECIMAL(10,3);
 
 	-- verifies none of inputs are NULL and counted_quantity is not negative
     IF inventory_snapshot IS NULL THEN
@@ -1226,7 +1227,7 @@ BEGIN
 	ELSEIF inventory_product IS NULL THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Product Number required for Inventory Snapshot' ;    
-	ELSEIF counted_quantity IS NULL OR  counted_quantity < 0 THEN
+	ELSEIF counted_total IS NULL OR  counted_quantity < 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Counted quantity is invalid' ;
     END IF;
@@ -1242,47 +1243,45 @@ BEGIN
         SET MESSAGE_TEXT = 'snapshot id not found in snapshot records';
 	END IF;
     
-    SELECT COUNT(*)
-    INTO v_count
-    FROM Product
-    WHERE product_num = inventory_product;
-    
     -- Makes sure that product entry for snapshotInventory is a valid product
     IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Snapshot product not found in Products';
 	END IF;
     
-    SELECT previous_snapshot
-    INTO last_snapshot
-    FROM InventorySnapshotRecord
-    WHERE snapshot_num = inventory_snapshot;
     
-    -- if there is no previous snapshot then total from last period is 0
-    IF last_snapshot IS NULL THEN
-		SET expected_total = 0;
-        
-	-- if previous snapshot exists, we start from there and then add change
-	ELSE 
-		SELECT COUNT(*)
-        INTO v_count
-        FROM InventorySnapshotRecord
-        WHERE snapshot_num = last_snapshot;
-        
-        -- verifies last_snapshot represents a real snapshot
-        IF v_count = 0 THEN
-			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'previous snapshot does not exist';
-		END IF;
-        
-        SELECT COUNT(*)
-        INTO v_count
-        FROM InventorySnapshot
-        WHERE snapshot_num = last_snapshot
-        AND product_num = inventory_product;
-        
-    END IF;
+    -- ensures product inventory exists and is valid
+    SELECT COUNT(*) 
+    INTO v_count
+    FROM ProductInventory
+    WHERE product_num = inventory_product;
     
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No product inventory found';
+	END IF;
+    
+    SELECT quantity 
+    INTO expected_total
+    FROM ProductInventory
+    WHERE product_num = inventory_product;
+    
+    IF expected_total IS NULL OR expected_total < 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product inventory invalid';
+	END IF;
+    
+    INSERT INTO InventorySnapshot(
+		snapshot_id,
+		product_num,
+		expected_quantity,
+		counted_quantity
+    ) VALUES (
+		inventory_snapshot,
+        inventory_product,
+        expected_total,
+        counted_total
+        );
     
 END$$
 
