@@ -19,7 +19,7 @@ Finalizes a pending invoice by changing its status to APPROVED or DENIED and pas
 - Validate that the final state is either APPROVED or DENIED
 - Verify that the transactions associated with the invoice_id have valid product numbers associated with the invoice's vendor.
 - Update price in product table if invoice is approved
-- Update the inventory number associated with that item if invoice is approved
+- Update the inventory number associated with that product if invoice is approved
 - Update inventory transaction status
 - Update invoice status
 
@@ -50,31 +50,29 @@ Finalizes inventory transaction and update Inventory levels associated with that
 ---
 
 ## createUseTransaction
-Creates an inventory transaction of USE type, recording item, quantity, creator of the transaction and product number which may be NULL if unknown.
+Creates an inventory transaction of USE type, recording the product used, quantity, and creator.
 
 ### Input Parameters
-1. use_item: internal number for item that is being used
-2. use_quantity: quantity of item being used in internal units
+1. use_product: product number being used
+2. use_quantity: quantity of product being used in internal units
 3. creator: employee number of the creator of the transaction
-4. use_product_num: the product number of the used product, if unknown NULL
 
 ### Goals
 - Verify that creator is a valid employee
 - Verify that use_quantity is positive
-- Verify item's internal number is valid
-- If use_product_num is NULL, set transaction price and product_num to NULL
-- If use_product_num is not NULL, verify that product number is valid and matched internal item
+- Verify item's product number is valid
+- Verify that product number is valid and matched internal item
 - Verify that the price and conversion_factor for the product is postive
-- Given product_num isn't null then converts price per product unit to price per internal unit
+- Converts price per product unit to price per internal unit
 - Insert into InventoryTransaction
 
 ---
 
 ## createAdjustTransaction
-Creates an inventory transaction of ADJUST type, recording item, quantity, creator of the transaction, reason for adjustment and product number which may be NULL if unknown.
+Creates an inventory transaction of ADJUST type, recording product, quantity, creator of the transaction, reason for adjustment and product number which may be NULL if unknown.
 
 ### Input Parameters
-1. adjust_item: internal number for item that is being used
+1. adjust_product: product number for item that is being used
 2. trans_quantity: quantity of item being used in internal units
 3. creator: employee number of the creator of the transaction
 4. use_product_num: the product number of the used product, if unknown NULL
@@ -84,9 +82,7 @@ Creates an inventory transaction of ADJUST type, recording item, quantity, creat
 - Ensure that quantity for transaction is not valid, can be positive or negative only
 - Verify that the creator of the transaction is a valid employee
 - Ensure that a reason is supplied for the inventory adjustment
-- Verify that the item number for the adjustment is valid
-- If product num is NULL then transaction price and product_num
-- If product number is given, validate it and ensure that item number for transaction match the item number associated with that product
+- Verify that the product number for the adjustment is valid
 - Validate the product's price per order unit and conversion factor
 - Sets transaction price in terms of internal units
 - Inserts into InventoryTransaction
@@ -94,9 +90,9 @@ Creates an inventory transaction of ADJUST type, recording item, quantity, creat
 ---
 
 ## createWasteTransaction
-Creates an inventory transaction of WASTE type, recording item, quantity, creator of the transaction, reason for adjustment and product number which may be NULL if unknown.
+Creates an inventory transaction of WASTE type, recording product number, quantity, creator of the transaction, reason for adjustment and product number which may be NULL if unknown.
 ### Input Parameters
-1. waste_item: internal number for item that is being used
+1. waste_product: product number for item that is being used
 2. trans_quantity: quantity of item being used in internal units
 3. creator: employee number of the creator of the transaction
 4. waste_product_num: the product number of the used product, if unknown NULL
@@ -104,10 +100,9 @@ Creates an inventory transaction of WASTE type, recording item, quantity, creato
 
 # Goals
 - Verify trans_quantity is strictly positive
-- Verifies new itemnnumer associated
-- Ensures that a reason wa given for waste transactin
+- Verifies product num is a valid product
+- Ensures that a reason was given for waste transactin
 - Verfies that a valid employee number was given to create the transaction
-- If transaction's product number is not NULL, validates the number and ensures that the product's internal number matches the transaction's
 - Validates products price and conversion factor and converts price to internal units
 - Inserts into InventoryTransaction
 
@@ -214,6 +209,7 @@ Adds record in InvoiceLine table which describes products that are received from
 2. new_product_num: product number of the product being received
 3. new_quantity: amount of product being received in order units
 4. new_line_price: total price for new_quantity number of products
+5. creator: employee number of a manager who is entering the invoice
 
 ### Goals
 - Ensure invoice_id is valid
