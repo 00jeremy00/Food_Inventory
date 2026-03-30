@@ -173,6 +173,8 @@ CALL resolveInvoice(3, 'APPROVED', '56881');
 CALL resolveInvoice(4, 'APPROVED', '56881');
 
 CALL createUseTransaction(19, 40, '56881');
+CALL createAdjustTransaction(19, 40, '56881', 'improper setup');
+CALL resolveInventoryTransaction(21, 'APPROVED', '56881');
 CALL resolveInventoryTransaction(20, 'APPROVED', '56881');
 
 CALL createWasteTransaction(19, 0.5, '56881', 'dropped on the floor');
@@ -180,3 +182,13 @@ CALL resolveInventoryTransaction(21, 'APPROVED', '56881');
 
 CALL createAdjustTransaction(19, -4.6, '56881', 'inventory correction');
 CALL resolveInventoryTransaction(22, 'APPROVED', '56881');
+
+SHOW ERRORS;
+
+SELECT * FROM InventoryTransaction
+	WHERE transaction_type <> 'RECEIVE';
+
+SELECT * FROM ProductInventory;
+SELECT COUNT(*)
+FROM ProductInventory;
+SHOW ERRORS;

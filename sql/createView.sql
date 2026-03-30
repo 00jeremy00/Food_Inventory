@@ -36,3 +36,9 @@ JOIN Manager as m
 ON m.manager_num = t.manager_num
 WHERE t.transaction_type IN ('ADJUST', 'WASTE');
 
+CREATE OR REPLACE VIEW InventoryData AS
+SELECT
+	i.internal_num,
+    i.internal_name,
+    
+

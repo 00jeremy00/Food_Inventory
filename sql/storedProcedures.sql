@@ -11,6 +11,8 @@ DROP PROCEDURE IF EXISTS addInvoice;
 DROP PROCEDURE IF EXISTS addInvoiceLine;
 DROP PROCEDURE IF EXISTS addRecipe;
 DROP PROCEDURE IF EXISTS addIngredient;
+DROP PROCEDURE IF EXISTS createInventorySnapshotRecord;
+DROP PROCEDURE IF EXISTS createInventorySnapshot;
 DELIMITER $$
 
 
@@ -1207,9 +1209,7 @@ BEGIN
 );
 END$$
 
-
-CREATE PROCEDURE createInventorySnapshot
-(
+CREATE PROCEDURE createInventorySnapshot(
     IN inventory_snapshot INT,
     IN inventory_product INT,
     IN counted_total DECIMAL(10,3)

@@ -253,3 +253,23 @@ Creates one ingredient that will be used in a recipe.
 - Verify that new_item string is valid and refers to an item
 - Verify that new_quantity is strictly positive
 - Insert into Ingredient
+
+## createInventorySnapshotRecord
+Creates an inventory snapsshot record which will have snapshots which count the products for that record refering to it.
+
+### Input Parameters
+1. recorder: employee number of who is creating the snapshot and counting the inventory, must be a manager
+2. last_snapshot: snapshot id of the previous snapshot
+
+### Goals
+- Verifies recorder is a valid manager
+- Veriifes that last_snaphot refers to a valid snaphot or NULL
+- Insert into InventorySnapshotRecord with the CURRENT_TIMESTAMP and PENDING status
+
+
+## createInventorySnapshot
+Creates the Inventory Snapshot recording for one product which includes its expected amount and the amount physically counted
+1. inventory_snapshot: the snapsphot record which this snapshot refers to
+2. inventory_product:the product number of the product which is being counted
+3. counted_total: how much the the product was physically counted.
+
