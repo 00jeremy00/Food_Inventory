@@ -10,7 +10,7 @@ DROP PROCEDURE IF EXISTS addEmployee;
 DROP PROCEDURE IF EXISTS addInvoice;
 DROP PROCEDURE IF EXISTS addInvoiceLine;
 DROP PROCEDURE IF EXISTS addRecipe;
-DROP PROCEDURE IF EXISTS addIngredient;
+DROP PROCEDURE IF EXISTS addIngred
 DELIMITER $$
 
 
@@ -1155,4 +1155,135 @@ BEGIN
     );
     
 END$$
+
+CREATE PROCEDURE createInventorySnapshotRecord(
+IN recorder VARCHAR(20),
+IN last_snapshot INT 
+)
+BEGIN
+    DECLARE v_count INT;
+
+    -- verifies snapshot recorder has valid employee num
+    IF recorder IS NULL OR TRIM(recorder) = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT ='invalid employee number for snapshot record' ;
+    END IF;
+
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Employee
+    WHERE employee_num = recorder
+    AND is_manager = TRUE;
+
+    -- Verifies recorder credentials match a manager in Employees
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No manager found matching recorder number' ;
+    END IF;
+
+    IF last_snapshot IS NOT NULL THEN
+        SELECT COUNT(*)
+        INTO v_count
+        FROM InventorySnapshotRecord
+        WHERE snapshot_id = last_snapshot;
+
+        -- If previous snapshot is not NULL makes sure it refers to valid snapshot
+        IF v_count = 0 THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Previous Snapshot ID is not null and doesn\'t refer a valid snapshot' ;
+        END IF;
+    END IF;
+
+    INSERT INTO InventorySnapshotRecord(
+        snapshot_time,
+        previous_snapshot,
+        snapshot_status,
+        recorded_by
+) VALUES (
+        CURRENT_TIMESTAMP,
+        last_snapshot,
+        'PENDING',
+        recorder
+);
+END$$
+
+
+CREATE PROCEDURE createInventorySnapshot
+(
+    IN inventory_snapshot INT,
+    IN inventory_product INT,
+    IN counted_quantity DECIMAL(10,3)
+)
+BEGIN
+    DECLARE v_count INT;
+    DECLARE expected_total DECIMAL(10,3);
+    DECLARE last_snapshot INT;
+
+	-- verifies none of inputs are NULL and counted_quantity is not negative
+    IF inventory_snapshot IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Inventory Snapshot Record required for Inventory Snapshot' ;
+	ELSEIF inventory_product IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product Number required for Inventory Snapshot' ;    
+	ELSEIF counted_quantity IS NULL OR  counted_quantity < 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Counted quantity is invalid' ;
+    END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM InventorySnapshotRecord
+    WHERE snapshot_id = inventory_snapshot;
+
+	-- verififes that the snapshot record exists
+	IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'snapshot id not found in snapshot records';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Product
+    WHERE product_num = inventory_product;
+    
+    -- Makes sure that product entry for snapshotInventory is a valid product
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Snapshot product not found in Products';
+	END IF;
+    
+    SELECT previous_snapshot
+    INTO last_snapshot
+    FROM InventorySnapshotRecord
+    WHERE snapshot_num = inventory_snapshot;
+    
+    -- if there is no previous snapshot then total from last period is 0
+    IF last_snapshot IS NULL THEN
+		SET expected_total = 0;
+        
+	-- if previous snapshot exists, we start from there and then add change
+	ELSE 
+		SELECT COUNT(*)
+        INTO v_count
+        FROM InventorySnapshotRecord
+        WHERE snapshot_num = last_snapshot;
+        
+        -- verifies last_snapshot represents a real snapshot
+        IF v_count = 0 THEN
+			SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'previous snapshot does not exist';
+		END IF;
+        
+        SELECT COUNT(*)
+        INTO v_count
+        FROM InventorySnapshot
+        WHERE snapshot_num = last_snapshot
+        AND product_num = inventory_product;
+        
+    END IF;
+    
+    
+END$$
+
 DELIMITER ;
