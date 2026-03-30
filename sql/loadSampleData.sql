@@ -1,5 +1,6 @@
 USE FOOD;
-
+SELECT *
+FROM Item;
 INSERT INTO Category VALUES
 ('REFRIGERATED'),
 ('DRY FOOD'),
@@ -23,28 +24,36 @@ INSERT INTO Vendor VALUES
 "https://www.restaurantdepot.com/");
 
 INSERT INTO Item VALUES
-("000001", "French Fries", "FROZEN", "lb", 2.12),
-("000002", "Cheddar Cheese Slice", "REFRIGERATED", "lb", 10.0),
-("000003", "Ketchup", "DRY FOOD", "gal", 25.0),
-("000004", "Napkins", "PAPER GOODS", "each", .01),
-("000005", "Mustard", "DRY FOOD", "gal", 27.25),
-("000006", "Mayonnaise", "DRY FOOD", "gal", 30.50),
-("000007", "Pickles", "DRY FOOD", "gal", 60.0),
-("000008", "Burger Buns", "DRY FOOD", "each", .50),
-("000009", "Ground Beef", "MEAT", "lb", 2.00),
-("000010", "Chicken Breast", "MEAT", "lb", 2.00),
-("000011", "Lettuce", "PRODUCE", "head", 1.50),
-("000012", "Tomatoes", "PRODUCE", "lb", 5.69),
-("000013", "Onions", "PRODUCE", "lb", 8.50),
-("000014", "Paper Towels", "PAPER GOODS", "roll", 4.00),
-("000015", "Foam Takeout Containers", "PAPER GOODS", "each", .20),
-("000016", "Mozzarella Cheese", "REFRIGERATED", "lb", 50.12),
-("000017", "Bacon", "REFRIGERATED", "lb", 20.0),
-("000018", "Frozen Chicken Nuggets", "FROZEN", "lb", 5.59),
-("000019", "Hash Browns", "FROZEN", "lb", 9.99),
-("000020", "BBQ Sauce", "DRY FOOD", "gal", 24.56);
+("000001", "French Fries", "FROZEN", "lb"),
+("000002", "Cheddar Cheese Slice", "REFRIGERATED", "lb"),
+("000003", "Ketchup", "DRY FOOD", "gal"),
+("000004", "Napkins", "PAPER GOODS", "each"),
+("000005", "Mustard", "DRY FOOD", "gal"),
+("000006", "Mayonnaise", "DRY FOOD", "gal"),
+("000007", "Pickles", "DRY FOOD", "gal"),
+("000008", "Burger Buns", "DRY FOOD", "each"),
+("000009", "Ground Beef", "MEAT", "lb"),
+("000010", "Chicken Breast", "MEAT", "lb"),
+("000011", "Lettuce", "PRODUCE", "head"),
+("000012", "Tomatoes", "PRODUCE", "lb"),
+("000013", "Onions", "PRODUCE", "lb"),
+("000014", "Paper Towels", "PAPER GOODS", "roll"),
+("000015", "Foam Takeout Containers", "PAPER GOODS", "each" ),
+("000016", "Mozzarella Cheese", "REFRIGERATED", "lb"),
+("000017", "Bacon", "REFRIGERATED", "lb"),
+("000018", "Frozen Chicken Nuggets", "FROZEN", "lb"),
+("000019", "Hash Browns", "FROZEN", "lb"),
+("000020", "BBQ Sauce", "DRY FOOD", "gal");
 
-INSERT INTO Product VALUES
+INSERT INTO Product (
+    vendor_pnum,
+    vendor_pname,
+    internal_num,
+    purchase_unit,
+    vendor_num,
+    price,
+    conversion_factor
+) VALUES
 ("126991260",
 "Hellmann's Real Mayonnaise 1 Gallon Jug - 4/Case",
 "000006", "4gal", "000001", 61.99, 4.0),
@@ -125,64 +134,49 @@ INSERT INTO Product VALUES
 "Mild Cheddar Cheese 5 lb. Loaf - 6/Case",
 "000002", "30lb", "000003", 176.49, 30.0);
 
-INSERT INTO Manager VALUES
-("56881", "Jeremy Dickinson"),
-("56882", "John Doe"),
-("56883", "Shabrea Stafford");
+INSERT INTO Employee VALUES
+("56881", "Jeremy Dickinson", TRUE),
+("56882", "John Doe", TRUE),
+("56883", "Fran Fine", TRUE),
+("56884", "Sam Shrek", FALSE);
 
 CALL addInvoice("8945341", "2025-12-12", "000001");
-CALL addInvoiceLine("8945341", '126991260', 5);
-CALL addInvoiceLine("8945341", "hashbrown6", 2);
-CALL addInvoiceLine("8945341", 'mzz6132', 2);
-CALL addInvoiceLine("8945341", 'ptowel030', 7);
+CALL addInvoiceLine(1, 1, 5, '56882', 20.0);
+CALL addInvoiceLine(1, 9, 2, '56881', 22.10);
+CALL addInvoiceLine(1, 11, 1, '56882', 35.0);
+CALL addInvoiceLine(1, 14, 3, '56881', 9.99);
 
-CALL resolveInvoice('8945341', 'APPROVED', '56881');
+CALL resolveInvoice(1, 'APPROVED', '56881');
 
 CALL addInvoice("89453412", "2025-12-19", "000002");
-CALL addInvoiceLine("89453412", "411pickle01", 1);
-CALL addInvoiceLine("89453412", "beef80193", 10);
-CALL addInvoiceLine("89453412", 'friesskinon', 20);
-CALL addInvoiceLine("89453412", 'lettuce24', 2);
-CALL addInvoiceLine("89453412", "must001alt", 1);
-CALL addInvoiceLine("89453412", "nugget10x2", 5);
+CALL addInvoiceLine(2, 2, 1, '56881', 38.49);
+CALL addInvoiceLine(2, 4, 10, '56882', 429.00);
+CALL addInvoiceLine(2, 19, 20, '56881', 1659.80);
+CALL addInvoiceLine(2, 6, 2, '56882', 72.98);
+CALL addInvoiceLine(2, 16, 1, '56881', 23.99);
+CALL addInvoiceLine(2, 13, 5, '56882', 344.95);
 
 CALL addInvoice("89453413", "2025-12-20", "000003");
-CALL addInvoiceLine("89453413", "900bun001", 5);
-CALL addInvoiceLine("89453413", "bacon15sl", 15);
-CALL addInvoiceLine("89453413", 'bbq128oz4', 1);
-CALL addInvoiceLine("89453413", 'cheddar5lb6', 4);
-CALL addInvoiceLine("89453413", "chxbreast1", 10);
-CALL addInvoiceLine("89453413", "ketchup106", 1);
-CALL addInvoiceLine("89453413", "tomroma25", 2);
+CALL addInvoiceLine(3, 3, 5, '56881', 149.95);
+CALL addInvoiceLine(3, 12, 15, '56882', 1124.85);
+CALL addInvoiceLine(3, 15, 1, '56881', 43.99);
+CALL addInvoiceLine(3, 20, 4, '56882', 705.96);
+CALL addInvoiceLine(3, 5, 10, '56881', 1199.90);
+CALL addInvoiceLine(3, 17, 1, '56882', 36.99);
+CALL addInvoiceLine(3, 7, 2, '56881', 63.98);
 
 CALL addInvoice("89453414", "2025-12-24", "000004");
-CALL addInvoiceLine("89453414", "foam200cl", 5);
-CALL addInvoiceLine("89453414", "napkinbev2", 15);
+CALL addInvoiceLine(4, 10, 5, '56881', 94.95);
+CALL addInvoiceLine(4, 18, 15, '56882', 217.35);
 
-CALL resolveInvoice('89453413', 'APPROVED', '56881');
-CALL resolveInvoice('89453414', 'APPROVED', '56881');
+CALL resolveInvoice(3, 'APPROVED', '56881');
+CALL resolveInvoice(4, 'APPROVED', '56881');
 
-CALL createUseTransaction('000001', 40, NULL, 'friesskinon');
-CALL resolveInventoryTransaction(20, 'APPROVED', NULL);
+CALL createUseTransaction(19, 40, '56881');
+CALL resolveInventoryTransaction(20, 'APPROVED', '56881');
 
-CALL createWasteTransaction('000001', .5, '56881', 'dropped on the floor', 'friesskinon');
+CALL createWasteTransaction(19, 0.5, '56881', 'dropped on the floor');
 CALL resolveInventoryTransaction(21, 'APPROVED', '56881');
 
-CALL createAdjustTransaction('000001', -4.6, '56881', 'inventory correction', NULL);
+CALL createAdjustTransaction(19, -4.6, '56881', 'inventory correction');
 CALL resolveInventoryTransaction(22, 'APPROVED', '56881');
-
-
-
-SELECT * FROM Invoice;
-SELECT * FROM ProductInventory;
-SELECT * FROM Product;
-SELECT * FROM InventoryTransaction
-WHERE transaction_type = 'ADJUST';
-
-SELECT vendor_pnum
-FROM Product
-WHERE internal_num = '000001';
-
-SELECT *
-FROM Product 
-WHERE vendor_num = '000006';

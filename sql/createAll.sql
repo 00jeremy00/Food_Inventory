@@ -107,7 +107,6 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
     product_num INT,
     price_per_unit DECIMAL(10,3),
     reason VARCHAR(64),
-    FOREIGN KEY(plan_num) REFERENCES PrepPlan(plan_num),
     FOREIGN KEY (product_num) REFERENCES Product(product_num),
 	FOREIGN KEY (invoice_id) REFERENCES Invoice(invoice_id),
     FOREIGN KEY (approved_by) REFERENCES Employee(employee_num),

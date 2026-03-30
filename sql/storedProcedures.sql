@@ -9,6 +9,8 @@ DROP PROCEDURE IF EXISTS addVendor;
 DROP PROCEDURE IF EXISTS addEmployee;
 DROP PROCEDURE IF EXISTS addInvoice;
 DROP PROCEDURE IF EXISTS addInvoiceLine;
+DROP PROCEDURE IF EXISTS addRecipe;
+DROP PROCEDURE IF EXISTS addIngredient;
 DELIMITER $$
 
 
@@ -924,7 +926,7 @@ BEGIN
     -- ensure invoice id is given
     IF new_invoice IS NULL THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'No invoice number given';
+        SET MESSAGE_TEXT = 'No invoice id given';
     END IF;
     
     SELECT COUNT(*)
@@ -938,11 +940,12 @@ BEGIN
         SET MESSAGE_TEXT = 'Invoice not found';
     END IF;
     
-    SELECT approval_status
-    INTO invoice_status
+    SELECT approval_status, vendor_num
+    INTO invoice_status, invoice_vendor
     FROM Invoice
     WHERE invoice_id = new_invoice;
     
+    -- ensures invoice is still pending
     IF invoice_status IS NULL OR invoice_status <> 'PENDING' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Invoice must be pending to add invoice line items';
@@ -950,10 +953,11 @@ BEGIN
     
     -- validate price of invoice line
     IF new_line_price IS NULL OR new_line_price <= 0 THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'line price for invoice line invalid';
-	END IF;
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Line price for invoice line invalid';
+    END IF;
     
+    -- ensures creator is provided
     IF creator IS NULL OR TRIM(creator) = '' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Inventory transaction requires creator';
@@ -962,10 +966,9 @@ BEGIN
     SELECT COUNT(*)
     INTO v_count
     FROM Employee
-    WHERE employee_num = creator
-    AND is_manager = TRUE;
+    WHERE employee_num = creator;
     
-    -- verifies that creator is a valid manager
+    -- verifies that creator is a valid employee
     IF v_count = 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Invalid employee number for creator';
@@ -980,18 +983,16 @@ BEGIN
     IF v_count = 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Product number not found';
-    ELSEIF new_quantity IS NULL OR new_quantity <= 0 THEN
+    END IF;
+
+    -- verifies quantity is strictly positive
+    IF new_quantity IS NULL OR new_quantity <= 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Invoice quantity must be strictly positive';
     END IF;
     
-    SELECT vendor_num
-    INTO invoice_vendor
-    FROM Invoice
-    WHERE invoice_id = new_invoice;
-    
-    SELECT vendor_num
-    INTO product_vendor
+    SELECT vendor_num, conversion_factor
+    INTO product_vendor, v_factor
     FROM Product
     WHERE product_num = new_product_num;
     
@@ -1007,22 +1008,33 @@ BEGIN
         SET MESSAGE_TEXT = 'Product and invoice vendors do not match';
     END IF;
     
-    SELECT conversion_factor
-    INTO v_factor
-    FROM Product
-    WHERE product_num = new_product_num;
-    
-    -- verifies data from product is valid
-	IF v_factor IS NULL OR v_factor <= 0 THEN
+    -- verifies conversion factor is valid
+    IF v_factor IS NULL OR v_factor <= 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Conversion factor must be strictly positive';
     END IF;
 
+    -- prevents duplicate invoice line entries for same product
+    SELECT COUNT(*)
+    INTO v_count
+    FROM InvoiceLine
+    WHERE invoice_id = new_invoice
+      AND product_num = new_product_num;
+
+    IF v_count <> 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Product already exists on this invoice';
+    END IF;
+
+    -- converts ordered quantity into internal units
     SET v_internal_quantity = new_quantity * v_factor;
+
+    -- calculates price per internal unit
     SET new_product_price = new_line_price / v_internal_quantity;
 
     START TRANSACTION;
     
+    -- inserts invoice line record
     INSERT INTO InvoiceLine(
         invoice_id,
         product_num,
@@ -1035,6 +1047,7 @@ BEGIN
         new_line_price
     );
     
+    -- creates corresponding RECEIVE transaction (pending approval)
     INSERT INTO InventoryTransaction(
         transaction_type,
         quantity,
