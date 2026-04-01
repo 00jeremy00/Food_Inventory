@@ -269,8 +269,26 @@ Creates an inventory snapsshot record which will have snapshots which count the 
 
 ## createInventorySnapshot
 Creates the Inventory Snapshot recording for one product which includes its expected amount and the amount physically counted
+
+### Input Parameters
 1. inventory_snapshot: the snapsphot record which this snapshot refers to
 2. inventory_product:the product number of the product which is being counted
 3. counted_total: how much the the product was physically counted.
 
+### Goals
+- Verify inventory_snapshot refers to a valid snapshot
+- Verify inventory_product refers to a valid product
+- Verify counted_total is valid and not negative
+- Verify ProductInventory has a valid quantity and store for expected_quantity
+- Insert snapshot info into InventorySnapshot
 
+## completeSnapshot
+Completes an inventory snapshot by updating record and verifying that all products with non-zero ProductInventory quantities have snapshots recording inventory.
+
+### Input Parameters
+1. completed_snapshot: refers to the snapshot record which needs to be resolved
+### Goals
+- Verify that snapshot is valid
+- Verify that the snapshot's status is PENDING
+- For each ProductInventory with a nonzero quantity
+- Update snapshot_status in InventorySnapshotRecord to COMPLETED
