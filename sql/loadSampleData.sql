@@ -178,7 +178,6 @@ CALL resolveInventoryTransaction(21, 'APPROVED', '56881');
 CALL resolveInventoryTransaction(20, 'APPROVED', '56881');
 
 CALL createWasteTransaction(19, 0.5, '56881', 'dropped on the floor');
-CALL resolveInventoryTransaction(21, 'APPROVED', '56881');
 
 CALL createAdjustTransaction(19, -4.6, '56881', 'inventory correction');
 CALL resolveInventoryTransaction(22, 'APPROVED', '56881');

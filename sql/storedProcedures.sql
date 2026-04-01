@@ -13,6 +13,7 @@ DROP PROCEDURE IF EXISTS addRecipe;
 DROP PROCEDURE IF EXISTS addIngredient;
 DROP PROCEDURE IF EXISTS createInventorySnapshotRecord;
 DROP PROCEDURE IF EXISTS createInventorySnapshot;
+DROP PROCEDURE IF EXISTS completeSnapshot;
 DELIMITER $$
 
 
@@ -1284,5 +1285,74 @@ BEGIN
         );
     
 END$$
+
+CREATE PROCEDURE completeSnapshot(
+	IN completed_snapshot INT
+)
+BEGIN 
+	DECLARE v_count INT;
+    DECLARE inventory_product INT;
+    DECLARE snap_status VARCHAR(20);
+    DECLARE done INT DEFAULT FALSE;
+
+    DECLARE cur CURSOR FOR				-- gets transaction info for transactions of selected invoice
+        SELECT product_num
+        FROM ProductInventory
+        WHERE quantity > 0;
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    IF completed_snapshot IS NULL OR completed_snapshot < 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'completeSnapshot [E01]: Invalid snapshot number';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM InventorySnapshotRecord
+    WHERE snapshot_id = completed_snapshot;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'completeSnapshot [E02]:Snapshot not found';
+	END IF;
+    
+    SELECT snapshot_status
+    INTO snap_status
+    FROM InventorySnapshotRecord
+    WHERE snapshot_id = completed_snapshot;
+    
+    -- verifies snapshot is pending
+    IF snap_status <> 'PENDING' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'completeSnapshot [E03]:Snapshot must be PENDING to resolve';
+	END IF;
+    
+    -- verifies nonzero product quantity has a snapshot counting that product
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur 
+        INTO inventory_product;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        
+        SELECT COUNT(*)
+        INTO v_count
+        FROM InventorySnapshot
+        WHERE snapshot_id = completed_snapshot
+			AND product_num = inventory_product;
+            
+		IF v_count = 0 THEN
+			SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'completeSnapshot [E04]:No Snapshot Counting Product with Nonzero Inventory quantity';
+		END IF;
+	END LOOP;
+    CLOSE cur;
+    
+    UPDATE InventorySnapshotRecord
+	SET snapshot_status = 'COMPLETED'
+    WHERE snapshot_id = completed_snapshot;
+    
+END $$
 
 DELIMITER ;

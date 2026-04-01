@@ -273,3 +273,4 @@ Creates the Inventory Snapshot recording for one product which includes its expe
 2. inventory_product:the product number of the product which is being counted
 3. counted_total: how much the the product was physically counted.
 
+
