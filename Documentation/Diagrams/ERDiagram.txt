@@ -1,0 +1,161 @@
+Table Category {
+  category_name varchar(64) [pk]
+}
+
+Table Item {
+  internal_num varchar(20) [pk]
+  internal_name varchar(64) [not null]
+  category varchar(64) [not null]
+  internal_unit varchar(20) [not null]
+}
+Ref: Item.category > Category.category_name
+
+Table Vendor {
+  vendor_num varchar(6) [pk]
+  vendor_name varchar(64) [not null]
+  phone_number varchar(20)
+  email varchar(64)
+  website varchar(255)
+}
+
+Table Product {
+  product_num int [pk, increment]
+  vendor_pnum varchar(64) [not null]
+  vendor_pname varchar(255) [not null]
+  internal_num varchar(20) [not null]
+  purchase_unit varchar(20) [not null]
+  vendor_num varchar(6) [not null]
+  price decimal(10,2) [not null]
+  conversion_factor decimal(10,3) [not null]
+}
+Ref: Product.vendor_num > Vendor.vendor_num
+Ref: Product.internal_num > Item.internal_num
+
+Table Employee {
+  employee_num varchar(20) [pk]
+  employee_name varchar(64) [not null]
+  is_manager boolean [not null]
+}
+
+Table Invoice {
+  invoice_id int [pk, increment]
+  invoice_num varchar(20) [not null]
+  invoice_date date [not null]
+  vendor_num varchar(6) [not null]
+  approval_status enum('APPROVED', 'PENDING', 'DENIED') [not null, default: 'PENDING']
+  approved_by varchar(20)
+}
+Ref: Invoice.vendor_num > Vendor.vendor_num
+Ref: Invoice.approved_by > Employee.employee_num
+
+Table InvoiceLine {
+  invoice_id int [pk]
+  product_num int [pk]
+  quantity decimal(10,3) [not null]
+  line_price decimal(10,3) [not null]
+}
+Ref: InvoiceLine.invoice_id > Invoice.invoice_id
+Ref: InvoiceLine.product_num > Product.product_num
+
+Table ProductInventory {
+  product_num int [pk]
+  quantity decimal(10,3) [not null, default: 0.0]
+}
+Ref: ProductInventory.product_num > Product.product_num
+
+Table InventoryTransaction {
+  transaction_num int [pk, increment]
+  transaction_type enum('RECEIVE', 'USE', 'WASTE', 'ADJUST') [not null]
+  quantity decimal(10,3) [not null]
+  transaction_date datetime [not null, default: `CURRENT_TIMESTAMP`]
+  approved_by varchar(20)
+  created_by varchar(20)
+  approval_status enum('APPROVED', 'PENDING', 'DENIED') [not null, default: 'PENDING']
+  invoice_id int
+  product_num int
+  price_per_unit decimal(10,3)
+  reason varchar(64)
+}
+Ref: InventoryTransaction.product_num > Product.product_num
+Ref: InventoryTransaction.invoice_id > Invoice.invoice_id
+Ref: InventoryTransaction.approved_by > Employee.employee_num
+Ref: InventoryTransaction.created_by > Employee.employee_num
+
+Table InventorySnapshotRecord {
+  snapshot_id int [pk, increment]
+  snapshot_time datetime [not null]
+  snapshot_status enum('PENDING', 'COMPLETED') [not null, default: 'PENDING']
+  manager_num varchar(20) [not null]
+  notes varchar(255)
+}
+Ref: InventorySnapshotRecord.manager_num > Employee.employee_num
+
+Table InventorySnapshot {
+  snapshot_id int [pk]
+  product_num int [pk]
+  price_per_unit decimal(10,3) [not null]
+  expected_quantity decimal(10,3) [not null]
+  counted_quantity decimal(10,3) [not null]
+}
+Ref: InventorySnapshot.product_num > Product.product_num
+Ref: InventorySnapshot.snapshot_id > InventorySnapshotRecord.snapshot_id
+
+Table Recipe {
+  recipe_num int [pk, increment]
+  recipe_name varchar(64) [not null]
+  is_active bool [not null]
+  shelflife decimal(10,3)
+}
+
+Table Ingredient {
+  recipe_num int [pk]
+  internal_num varchar(20) [pk]
+  quantity decimal(10,3) [not null]
+}
+Ref: Ingredient.recipe_num > Recipe.recipe_num
+Ref: Ingredient.internal_num > Item.internal_num
+
+Table Shift{
+  shift_name VARCHAR(20) [pk]
+  start_time time [not null]
+  end_time time [not null]
+}
+
+Table Batch{
+  batch_num int [pk, increment]
+  recipe_num int [not null]
+  created_on DATETIME [not null]
+  created_by VARCHAR(20) [not null]
+  plan_num INT [default: null]
+  prepared_quantity decimal(10,3) [not null]
+  remaining_quantity decimal(10,3) [not null]
+  depleted_at DATETIME
+  expires_at DATETIME [not null]
+  batch_status enum('ACTIVE', 'DEPLETED', 'EXPIRED') [not null]
+}
+
+Ref: Batch.recipe_num > Recipe.recipe_num
+Ref: Batch.created_by > Employee.employee_num
+Ref: Batch.plan_num > PrepPlan.plan_num
+
+Table PrepPlan{
+  plan_num int [pk, increment]
+  plan_date DATE [not null]
+  plan_shift varchar(20)
+  plan_status enum('PENDING', 'COMPLETED') [not null, default: 'PENDING'] 
+  planned_by varchar(20) [not null]
+  planned_recipe int [not null]
+  planned_quantity decimal(10,3) [not null]
+}
+
+Ref: PrepPlan.planned_by > Employee.employee_num
+Ref: PrepPlan.planned_recipe > Recipe.recipe_num
+Ref: PrepPlan.plan_shift > Shift.shift_name
+
+Table BatchAllocation{
+  batch_num int [pk, not null]
+  product_num int [pk, not null]
+  quantity decimal(10,3) [not null]
+}
+Ref: BatchAllocation.product_num > Product.product_num
+Ref: BatchAllocation.batch_num > Batch.batch_num
