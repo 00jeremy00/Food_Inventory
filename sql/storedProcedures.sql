@@ -14,6 +14,8 @@ DROP PROCEDURE IF EXISTS addIngredient;
 DROP PROCEDURE IF EXISTS createInventorySnapshotRecord;
 DROP PROCEDURE IF EXISTS createInventorySnapshot;
 DROP PROCEDURE IF EXISTS completeSnapshot;
+DROP PROCEDURE IF EXISTS createPrepPlan;
+
 DELIMITER $$
 
 
@@ -1080,7 +1082,8 @@ END $$
 
 CREATE PROCEDURE addRecipe(
 	IN new_recipe_name VARCHAR(64),
-    IN new_active BOOLEAN
+    IN new_active BOOLEAN,
+    in shelf_life_hour DECIMAL(10,3)
 )
 BEGIN
 	-- validates recipe name
@@ -1092,14 +1095,20 @@ BEGIN
 	ELSEIF new_active IS NULL THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Invalid active status';
+	ELSEIF shelf_life_hour IS NULL OR shelf_life_hour <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'shelf life must be strictly positive';
 	END IF;
+    
     
     INSERT INTO Recipe(
 		recipe_name,
-        is_active
+        is_active,
+        shelflife
 	) VALUES(
        TRIM(new_recipe_name),
-       new_active
+       new_active,
+       shelf_life_hour
 	);
     
 END $$
@@ -1160,8 +1169,7 @@ BEGIN
 END$$
 
 CREATE PROCEDURE createInventorySnapshotRecord(
-IN recorder VARCHAR(20),
-IN last_snapshot INT 
+	IN recorder VARCHAR(20)
 )
 BEGIN
     DECLARE v_count INT;
@@ -1182,19 +1190,6 @@ BEGIN
     IF v_count = 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'No manager found matching recorder number' ;
-    END IF;
-
-    IF last_snapshot IS NOT NULL THEN
-        SELECT COUNT(*)
-        INTO v_count
-        FROM InventorySnapshotRecord
-        WHERE snapshot_id = last_snapshot;
-
-        -- If previous snapshot is not NULL makes sure it refers to valid snapshot
-        IF v_count = 0 THEN
-            SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Previous Snapshot ID is not null and doesn\'t refer a valid snapshot' ;
-        END IF;
     END IF;
 
     INSERT INTO InventorySnapshotRecord(
@@ -1354,5 +1349,97 @@ BEGIN
     WHERE snapshot_id = completed_snapshot;
     
 END $$
+
+CREATE PROCEDURE createPrepPlan(
+	IN new_plan_recipe INT,
+    IN new_plan_date DATE,
+    IN new_quantity DECIMAL(10,3),
+    IN new_plan_shift VARCHAR(20),
+    IN new_planner VARCHAR(20)
+)
+BEGIN
+	DECLARE v_count INT;
+    DECLARE recipe_active BOOLEAN;
+    
+    -- Verify that recipe is valid
+    IF new_plan_recipe IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createPrepPlan [E01]: recipe is NULL';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Recipe
+    WHERE recipe_num = new_plan_recipe;
+    
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createPrepPlan [E02]: recipe does not exist';
+	END IF;
+    
+    SELECT is_active 
+    INTO recipe_active
+    FROM Recipe
+    WHERE recipe_num = new_plan_recipe;
+    
+    IF NOT recipe_active THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createPrepPlan [E03]: recipe is inactive';
+	END IF;
+    
+    IF new_plan_date IS NULL OR new_plan_date < CURRENT_DATE THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createPrepPlan [E04]: plan date is invalid';
+    ELSEIF new_quantity IS NULL OR new_quantity <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createPrepPlan [E05]: planned recipe quantity is invalid';
+	END IF;
+    
+    IF new_plan_shift IS NULL OR TRIM(new_plan_shift) = '' THEN
+		SET new_plan_shift = NULL;
+	ELSE 
+		SELECT COUNT(*)
+        INTO v_count
+        FROM Shift
+        WHERE shift_name = new_plan_shift;
+        
+        IF v_count = 0 THEN
+			SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'createPrepPlan [E06]: Non Null shift does not exist';
+		END IF;
+	END IF;
+    
+    IF new_planner IS NULL OR TRIM(new_planner) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createPrepPlan [E07]: Invalid employee who made plan';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Employee
+    WHERE employee_num = new_planner;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createPrepPlan [E08]: Employee does not exist';
+	END IF;
+    
+    INSERT INTO PrepPlan(
+		recipe_num,
+		plan_date,
+		planned_quantity,
+		planned_shift,
+		planned_by,
+        plan_status
+    ) VALUES(
+		new_plan_recipe,
+        new_plan_date,
+        new_quantity,
+        new_plan_shift,
+        new_planner,
+        'PENDING'
+    );
+END$$
 
 DELIMITER ;
