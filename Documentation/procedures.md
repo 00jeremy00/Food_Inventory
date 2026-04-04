@@ -259,11 +259,8 @@ Creates an inventory snapsshot record which will have snapshots which count the 
 
 ### Input Parameters
 1. recorder: employee number of who is creating the snapshot and counting the inventory, must be a manager
-2. last_snapshot: snapshot id of the previous snapshot
-
 ### Goals
 - Verifies recorder is a valid manager
-- Veriifes that last_snaphot refers to a valid snaphot or NULL
 - Insert into InventorySnapshotRecord with the CURRENT_TIMESTAMP and PENDING status
 
 

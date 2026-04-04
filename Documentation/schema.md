@@ -99,20 +99,17 @@ Stores the running inventory based on products. Only approved transactions can a
 
 ### Columns
 - **product_num(INT)**: Identifies which product is being counted (PRIMARY KEY, FOREIGN KEY → Product.product_num)
-- **quantity(DECIMAL(10,3))**: The ammount of this product in stock
+- **quantity(DECIMAL(10,3))**: How much of that product is in the current inventory
 
 ---
 
-## PrepPlan
-Stores planned recipe production for a given date.
-
-Prep plans represent expected recipe usage and are used to estimate future inventory needs. It does not directly affect Inventory, but are used to calculate projections and store prep plans to learn/replicate.
+## Shift
+Defines the shifts that can occur on a day.
 
 ### Columns
-- **plan_num (INT)**: Unique identifier for the prep plan (PRIMARY KEY, AUTO_INCREMENT)
-- **recipe_num (INT)**: Recipe to be prepared (FOREIGN KEY → Recipe.recipe_num)
-- **plan_date (DATE)**: Date the recipe is planned to be made
-- **quantity (DECIMAL(10,3))**: Number of times the recipe is planned to be made
+- **shift_name (VARCHAR(20))**: the name of the shift (PRIMARY KEY)
+- **start_time (TIME)**: time at which the shift begins
+- **end_shift (TIME)**: time at which the shift ends
 
 ---
 
@@ -148,9 +145,8 @@ A snapshot record represents a counting event, including when it occurred, who m
 ### Columns
 - **snapshot_id (INT)**: Unique identifier for the snapshot record (PRIMARY KEY, AUTO_INCREMENT)
 - **snapshot_time (DATETIME)**: Date and time the snapshot was created
-- **previous_snapshot (INT)**: Identifier of the previous snapshot, if applicable
 - **snapshot_status (ENUM)**: Status of the snapshot record (`PENDING`, `COMPLETED`), defaults to `PENDING` (CHECK snapshot_status IN ('PENDING', 'COMPLETED'))
-- **manager_num (VARCHAR(20))**: Employee responsible for the snapshot (FOREIGN KEY → Employee.employee_num)
+- **completed_by (VARCHAR(20))**: Employee responsible for the snapshot (FOREIGN KEY → Employee.employee_num)
 - **notes (VARCHAR(255))**: Optional notes about the snapshot
 
 ---
@@ -179,6 +175,7 @@ Describes possible recipes that can be made.
 - **recipe_num(INT)**: Unique identifier for recipe (PRIMARY KEY, AUTO_INCREMENT)
 - **recipe_name(VARCHAR(64))**: Name of the recipe
 - **is_active(BOOLEAN)**: True if active recipe otherwie False
+- **shelf_life(INT)**: Number of hours that a recipe is good for
 
 ---
 
@@ -193,6 +190,50 @@ Lists the ingredients that contribute to a recipe to keep track of recipe usage.
 ### Primary Key
 - **(recipe_num, internal_num)**: Composite primary key ensuring no more than one item can be assigned to a recipe 
 ---
+
+
+## PrepPlan
+Stores planned recipe production for a given date.
+
+Prep plans represent expected recipe usage and are used to estimate future inventory needs. It does not directly affect Inventory, but are used to calculate projections and store prep plans to learn/replicate.
+
+### Columns
+- **plan_num (INT)**: Unique identifier for the prep plan (PRIMARY KEY, AUTO_INCREMENT)
+- **recipe_num (INT)**: Recipe to be prepared (FOREIGN KEY → Recipe.recipe_num)
+- **plan_date (DATE)**: Date the recipe is planned to be made
+- **quantity (DECIMAL(10,3))**: Number of times the recipe is planned to be made
+- **shift_name (VARCHAR(20))**: The shift which is responsible for executing the plan, NULL if any shift can do it (FOREIGN KEY → Shift.shift_name)
+- **plan_status (ENUM)**: status of the plan: `PENDING` when it has not been completed or `COMPLETED` when done
+- **executed_by (VARCHAR(20))**: who executed the prep (FOREIGN KEY → Employee.employee_num)
+ **planned_by (VARCHAR(20))**: who planned the prep (FOREIGN KEY → Employee.employee_num)
+---
+
+## Batch
+Describes recipes that have been created
+
+### Columns
+- **batch_num(INT)**: Unique identifier of the batch (PRIMARY KEY, AUTO_INCREMENT)
+- **recipe_num(INT)**: The batch makes this recipe (FOREIGN KEY → Recipe.recipe_num)
+- **created_on(DATETIME)**: The datetime which it was created
+- **quantity_prepared(DECIMAL(10,3))**: The amount of recipe that was prepared
+- **quantity_remaining(DECIMAL(10,3))**: The amount of recipe remaining
+- **created_by VARCHAR(20)**: Employee who created the batch
+- **expires_at(DATETIME)**: Time at which the recipe expires
+- **plan_num (INT)**: The plan that was followed to create this batch, NULL if unplanned (FOREIGN KEY → PrepPlan.plan_num)
+
+--- 
+
+## ProductRecipeAllocation
+Describes the products that are allocated to batches
+
+### Columns
+-**batch_num(INT)**: Identifies which batch the product allocation is for (FOREIGN KEY → Batch.batch_num)
+-**product_num(INT)**: Identifies the product that is being used for the batch (FOREIGN KEY → Product.product_num)
+-**quantity (DECIMAL(10,3))**: The quantity of product that was allocated to that batch
+
+### Primary Key
+- **(batch_num, product_num)**: Composite primary key of batch number and product
+
 
 ## Relationship Summary
 
@@ -210,7 +251,6 @@ Lists the ingredients that contribute to a recipe to keep track of recipe usage.
 
 ---
 # ER Diagram Code
-Code to ER Diagram for dbdiagram.io
 Table Category {
   category_name varchar(64) [pk]
 }
@@ -221,6 +261,7 @@ Table Item {
   category varchar(64) [not null]
   internal_unit varchar(20) [not null]
 }
+Ref: Item.category > Category.category_name
 
 Table Vendor {
   vendor_num varchar(6) [pk]
@@ -240,6 +281,8 @@ Table Product {
   price decimal(10,2) [not null]
   conversion_factor decimal(10,3) [not null]
 }
+Ref: Product.vendor_num > Vendor.vendor_num
+Ref: Product.internal_num > Item.internal_num
 
 Table Employee {
   employee_num varchar(20) [pk]
@@ -255,6 +298,8 @@ Table Invoice {
   approval_status enum('APPROVED', 'PENDING', 'DENIED') [not null, default: 'PENDING']
   approved_by varchar(20)
 }
+Ref: Invoice.vendor_num > Vendor.vendor_num
+Ref: Invoice.approved_by > Employee.employee_num
 
 Table InvoiceLine {
   invoice_id int [pk]
@@ -262,15 +307,17 @@ Table InvoiceLine {
   quantity decimal(10,3) [not null]
   line_price decimal(10,3) [not null]
 }
+Ref: InvoiceLine.invoice_id > Invoice.invoice_id
+Ref: InvoiceLine.product_num > Product.product_num
 
-Table Inventory {
-  internal_num varchar(20) [pk]
+Table ProductInventory {
+  product_num int [pk]
   quantity decimal(10,3) [not null, default: 0.0]
 }
+Ref: ProductInventory.product_num > Product.product_num
 
 Table InventoryTransaction {
   transaction_num int [pk, increment]
-  internal_num varchar(20) [not null]
   transaction_type enum('RECEIVE', 'USE', 'WASTE', 'ADJUST') [not null]
   quantity decimal(10,3) [not null]
   transaction_date datetime [not null, default: `CURRENT_TIMESTAMP`]
@@ -282,45 +329,86 @@ Table InventoryTransaction {
   price_per_unit decimal(10,3)
   reason varchar(64)
 }
+Ref: InventoryTransaction.product_num > Product.product_num
+Ref: InventoryTransaction.invoice_id > Invoice.invoice_id
+Ref: InventoryTransaction.approved_by > Employee.employee_num
+Ref: InventoryTransaction.created_by > Employee.employee_num
 
 Table InventorySnapshotRecord {
   snapshot_id int [pk, increment]
   snapshot_time datetime [not null]
-  previous_snapshot int
   snapshot_status enum('PENDING', 'COMPLETED') [not null, default: 'PENDING']
   manager_num varchar(20) [not null]
   notes varchar(255)
 }
+Ref: InventorySnapshotRecord.manager_num > Employee.employee_num
 
 Table InventorySnapshot {
   snapshot_id int [pk]
   product_num int [pk]
+  price_per_unit decimal(10,3) [not null]
   expected_quantity decimal(10,3) [not null]
   counted_quantity decimal(10,3) [not null]
 }
-
-Table ItemVariance {
-  snapshot_id int [pk]
-  internal_num varchar(20) [pk]
-  expected_quantity decimal(10,3) [not null]
-  counted_quantity decimal(10,3) [not null]
-}
-
-Ref: Item.category > Category.category_name
-Ref: Product.vendor_num > Vendor.vendor_num
-Ref: Product.internal_num > Item.internal_num
-Ref: Invoice.vendor_num > Vendor.vendor_num
-Ref: Invoice.approved_by > Employee.employee_num
-Ref: InvoiceLine.invoice_id > Invoice.invoice_id
-Ref: InvoiceLine.product_num > Product.product_num
-Ref: Inventory.internal_num > Item.internal_num
-Ref: InventoryTransaction.product_num > Product.product_num
-Ref: InventoryTransaction.invoice_id > Invoice.invoice_id
-Ref: InventoryTransaction.internal_num > Item.internal_num
-Ref: InventoryTransaction.approved_by > Employee.employee_num
-Ref: InventoryTransaction.created_by > Employee.employee_num
-Ref: InventorySnapshotRecord.manager_num > Employee.employee_num
 Ref: InventorySnapshot.product_num > Product.product_num
 Ref: InventorySnapshot.snapshot_id > InventorySnapshotRecord.snapshot_id
-Ref: ItemVariance.snapshot_id > InventorySnapshotRecord.snapshot_id
-Ref: ItemVariance.internal_num > Item.internal_num 
+
+Table Recipe {
+  recipe_num int [pk, increment]
+  recipe_name varchar(64) [not null]
+  is_active bool [not null]
+  shelflife decimal(10,3)
+}
+
+Table Ingredient {
+  recipe_num int [pk]
+  internal_num varchar(20) [pk]
+  quantity decimal(10,3) [not null]
+}
+Ref: Ingredient.recipe_num > Recipe.recipe_num
+Ref: Ingredient.internal_num > Item.internal_num
+
+Table Shift{
+  shift_name VARCHAR(20) [pk]
+  start_time time [not null]
+  end_time time [not null]
+}
+
+Table Batch{
+  batch_num int [pk, increment]
+  recipe_num int [not null]
+  created_on DATETIME [not null]
+  created_by VARCHAR(20) [not null]
+  plan_num INT [default: null]
+  prepared_quantity decimal(10,3) [not null]
+  remaining_quantity decimal(10,3) [not null]
+  depleted_at DATETIME
+  expires_at DATETIME [not null]
+  batch_status enum('ACTIVE', 'DEPLETED', 'EXPIRED') [not null]
+}
+
+Ref: Batch.recipe_num > Recipe.recipe_num
+Ref: Batch.created_by > Employee.employee_num
+Ref: Batch.plan_num > PrepPlan.plan_num
+
+Table PrepPlan{
+  plan_num int [pk, increment]
+  plan_date DATE [not null]
+  plan_shift varchar(20)
+  plan_status enum('PENDING', 'COMPLETED') [not null, default: 'PENDING'] 
+  planned_by varchar(20) [not null]
+  planned_recipe int [not null]
+  planned_quantity decimal(10,3) [not null]
+}
+
+Ref: PrepPlan.planned_by > Employee.employee_num
+Ref: PrepPlan.planned_recipe > Recipe.recipe_num
+Ref: PrepPlan.plan_shift > Shift.shift_name
+
+Table BatchAllocation{
+  batch_num int [pk, not null]
+  product_num int [pk, not null]
+  quantity decimal(10,3) [not null]
+}
+Ref: BatchAllocation.product_num > Product.product_num
+Ref: BatchAllocation.batch_num > Batch.batch_num
