@@ -102,8 +102,12 @@ CREATE TABLE IF NOT EXISTS PrepPlan(
     plan_date DATE NOT NULL,
     planned_quantity DECIMAL(10,3) NOT NULL DEFAULT 1,
     planned_shift VARCHAR(20),
+    planned_by VARCHAR(20),
+    plan_status ENUM('PENDING', 'COMPLETED') DEFAULT 'PENDING',
+    FOREIGN KEY(planned_by) REFERENCES Employee(employee_num),
 	FOREIGN KEY (planned_shift) REFERENCES Shift(shift_name),
-    FOREIGN KEY (recipe_num) REFERENCES Recipe(recipe_num)
+    FOREIGN KEY (recipe_num) REFERENCES Recipe(recipe_num),
+    CONSTRAINT valid_plan_status CHECK (plan_status IN ('COMPLETED', 'PENDING'))
 );
 
 CREATE TABLE IF NOT EXISTS Batch(
