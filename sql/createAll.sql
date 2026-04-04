@@ -74,7 +74,9 @@ CREATE TABLE IF NOT EXISTS ProductInventory(
 CREATE TABLE IF NOT EXISTS Recipe(
 	recipe_num INT AUTO_INCREMENT PRIMARY KEY,
     recipe_name VARCHAR(64) NOT NULL,
-    is_active BOOLEAN NOT NULL
+    is_active BOOLEAN NOT NULL,
+    shelflife DECIMAL(10,3) NOT NULL,
+    CONSTRAINT CHECK (shelflife > 0)
 );
 
 CREATE TABLE IF NOT EXISTS Ingredient(
@@ -85,14 +87,53 @@ CREATE TABLE IF NOT EXISTS Ingredient(
     FOREIGN KEY (recipe_num) REFERENCES Recipe(recipe_num),
 	FOREIGN KEY (internal_num) REFERENCES Item(internal_num),
     PRIMARY KEY(recipe_num, internal_num)
-    );
+);
+
+CREATE TABLE IF NOT EXISTS Shift(
+	shift_name VARCHAR(20) PRIMARY KEY,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    CONSTRAINT shift_end_after_start CHECK (end_time > start_time)
+);
 
 CREATE TABLE IF NOT EXISTS PrepPlan(
 	plan_num INT AUTO_INCREMENT PRIMARY KEY,
     recipe_num INT NOT NULL,
     plan_date DATE NOT NULL,
-    recipe_quantity DECIMAL(10,3) NOT NULL DEFAULT 1,
+    planned_quantity DECIMAL(10,3) NOT NULL DEFAULT 1,
+    planned_shift VARCHAR(20),
+	FOREIGN KEY (planned_shift) REFERENCES Shift(shift_name),
     FOREIGN KEY (recipe_num) REFERENCES Recipe(recipe_num)
+);
+
+CREATE TABLE IF NOT EXISTS Batch(
+	batch_num INT AUTO_INCREMENT PRIMARY KEY,
+    recipe_num INT NOT NULL,
+    created_on DATETIME NOT NULL,
+    created_by VARCHAR(20) NOT NULL,
+    plan_num INT DEFAULT NULL,
+    prepared_quantity DECIMAL(10,3) NOT NULL,
+    remaining_quantity DECIMAL(10,3) NOT NULL,
+    depleted_at DATETIME DEFAULT NULL,
+    expires_at DATETIME NOT NULL,
+    batch_status ENUM('ACTIVE', 'DEPLETED', 'EXPIRED') DEFAULT 'ACTIVE' NOT NULL,
+    FOREIGN KEY (recipe_num) REFERENCES Recipe(recipe_num),
+    FOREIGN KEY (created_by) REFERENCES Employee(employee_num),
+    FOREIGN KEY (plan_num) REFERENCES PrepPlan(plan_num),
+    CONSTRAINT prep_quantity_positive CHECK (prepared_quantity > 0),
+	CONSTRAINT remain_quantity_non_neg CHECK (remaining_quantity >= 0),
+	CONSTRAINT batch_status_valid CHECK (batch_status IN ('ACTIVE', 'DEPLETED', 'EXPIRED')),
+    CONSTRAINT expires_after_creation CHECK (expires_at > created_on)
+    );
+    
+    CREATE TABLE IF NOT EXISTS BatchAllocation(
+    batch_num INT NOT NULL,
+    product_num INT NOT NULL,
+    quantity DECIMAL(10,3) NOT NULL,
+    PRIMARY KEY (batch_num, product_num),
+    FOREIGN KEY (batch_num) REFERENCES Batch(batch_num),
+    FOREIGN KEY (product_num) REFERENCES Product(product_num),
+    CONSTRAINT alloc_quantity_positive CHECK (quantity > 0)
 );
 
 CREATE TABLE IF NOT EXISTS InventoryTransaction(
@@ -120,7 +161,6 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
 CREATE TABLE IF NOT EXISTS InventorySnapshotRecord(
 	snapshot_id INT AUTO_INCREMENT PRIMARY KEY,
 	snapshot_time DATETIME NOT NULL,
-    previous_snapshot INT NULL,
     snapshot_status ENUM('PENDING', 'COMPLETED') DEFAULT 'PENDING' NOT NULL,
     recorded_by VARCHAR(20) NOT NULL,
     notes VARCHAR(255),
@@ -139,6 +179,7 @@ CREATE TABLE IF NOT EXISTS InventorySnapshot(
     CONSTRAINT expected_product_positive CHECK (expected_quantity >= 0),
     CONSTRAINT counted_product_positive CHECK (counted_quantity >= 0)
 );
+
 
 
 SHOW TABLES;
