@@ -15,6 +15,10 @@ DROP PROCEDURE IF EXISTS createInventorySnapshotRecord;
 DROP PROCEDURE IF EXISTS createInventorySnapshot;
 DROP PROCEDURE IF EXISTS completeSnapshot;
 DROP PROCEDURE IF EXISTS createPrepPlan;
+DROP PROCEDURE createUnplannedBatch;
+DROP PROCEDURE IF EXISTS executePrepPlan;
+
+
 
 DELIMITER $$
 
@@ -1441,5 +1445,198 @@ BEGIN
         'PENDING'
     );
 END$$
+
+CREATE PROCEDURE createUnplannedBatch(
+	IN batch_recipe INT,
+    IN recipe_quantity DECIMAL(10,3),
+    IN batch_creator VARCHAR(20)
+)
+BEGIN
+	DECLARE v_count INT;
+    
+    IF batch_recipe IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'createBatch [E01]: Recipe is NULL';
+	END IF;
+
+	SELECT COUNT(*)
+	INTO v_count
+	FROM Recipe
+	WHERE recipe_num = batch_recipe;
+        
+	IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'createBatch [E02]: Recipe does not exist';
+	
+    ELSEIF recipe_quantity IS NULL or recipe_quantity <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'createBatch [E03]: Invalid recipe quantity';
+        
+	ELSEIF batch_creator IS NULL OR TRIM(batch_creator) = '' THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'createBatch [E04]: Batch creator is NULL';
+	END IF;
+    
+	SELECT COUNT(*)
+    INTO v_count
+    FROM Employee
+    WHERE employee_num = batch_creator;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'createBatch [E05]: Employee not found';
+	END IF;
+    
+    INSERT INTO Batch(
+		recipe_num,
+        created_on, 
+        created_by,
+        quantity_prepared,
+        quantity_remaining,
+        expires_at,
+        plan_num,
+        batch_status
+    ) VALUES(
+		batch_recipe,
+        NULL,
+        batch_creator,
+        recipe_quantity,
+        recipe_quantity,
+        NULL,
+        NULL,
+        'PENDING'
+    );
+        
+END$$
+
+CREATE PROCEDURE executePrepPlan(
+	IN plan_execute INT,
+    IN batch_creator VARCHAR(20)
+)
+BEGIN 
+	DECLARE v_count INT;
+    DECLARE verify_recipe INT;
+    DECLARE verify_quantity DECIMAL(10,3);
+    DECLARE verify_date DATE;
+    DECLARE verify_shift VARCHAR(20);
+    DECLARE verify_status VARCHAR(20);
+    DECLARE verify_start TIME;
+    DECLARE verify_end TIME;
+    
+    IF plan_execute IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E01]: plan_num is NULL';
+	END IF;
+
+    SELECT COUNT(*)
+    INTO v_count
+    FROM PrepPlan
+    WHERE plan_num = plan_execute;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E02]: Plan does not exist';
+	END IF;
+    
+    IF batch_creator IS NULL OR TRIM(batch_creator) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E03]: batch_creator is NULL';
+	END IF;
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Employee
+    WHERE employee_num = batch_creator;
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E04]: Employee not found';
+	END IF;
+
+    SELECT recipe_num, plan_date, quantity, shift_name, plan_status
+    INTO verify_recipe, verify_date, verify_quantity, verify_shift, verify_status
+    FROM PrepPlan
+    WHERE plan_num = plan_execute;
+    
+    IF verify_recipe IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E05]: recipe_num is NULL';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Recipe
+    WHERE recipe_num = verify_recipe;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E06]: Recipe not found';
+	ELSEIF verify_date IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E07]: plan_date is NULL';
+	ELSEIF verify_date = CURRENT_DATE THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E08]: Batch date must match plan date';
+	ELSEIF verify_quantity IS NULL OR verify_quantity <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E09]: Invalid quantity';
+	ELSEIF verify_shift IS NULL OR TRIM(verify_shift) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E10]: Invalid Shift';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Shift
+    WHERE shift_name = verify_shift;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E11]: Shift not found';
+	END IF;
+    
+    SELECT start_time, end_time
+    INTO verify_start, verify_end
+    FROM Shift
+    WHERE shift_name = verify_shift;
+    
+    IF CURRENT_TIME > verify_end OR CURRENT_TIME < verify_start THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E12]: Outiside scheduled shift time.';
+	END IF;
+    
+    IF verify_status <> 'PENDING' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E13]: Plan must be PENDING to execute';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Batch
+    WHERE plan_num = plan_execute;
+    
+    IF v_count <> 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E14]: Batch for plan already exists';
+	END IF;
+    
+    INSERT INTO Batch(
+		recipe_num,
+        created_on, 
+        created_by,
+        quantity_prepared,
+        quantity_remaining,
+        expires_at,
+        plan_num,
+        batch_status
+    ) VALUES(
+		verify_recipe,
+        NULL,
+        batch_creator,
+        verify_quantity,
+        verify_quantity,
+        NULL,
+        plan_execute,
+        'PENDING');
+END$$
+
 
 DELIMITER ;
