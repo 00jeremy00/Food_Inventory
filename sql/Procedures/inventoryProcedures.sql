@@ -30,12 +30,12 @@ BEGIN
 	-- Ensures that resolution status is aprroved or denied
     IF p_new_status NOT IN ('APPROVED', 'DENIED') THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Inventory transaction must be resolved as APPROVED or DENIED';
+        SET MESSAGE_TEXT = 'resolveInventoryTransaction [E01] Inventory transaction must be resolved as APPROVED or DENIED';
 	
     -- ensures that valid transaction number was given
 	ELSEIF p_transaction_num IS NULL THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Invalid Transaction Number chosen for resolution';  
+        SET MESSAGE_TEXT = 'resolveInventoryTransaction [E02] Invalid Transaction Number chosen for resolution';  
     END IF;
 
     SELECT COUNT(*)

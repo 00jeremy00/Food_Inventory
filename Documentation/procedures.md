@@ -7,7 +7,7 @@ These proceudres are the primary way that the database should be interacted with
 ## resolveInvoice
 Finalizes a pending invoice by changing its status to APPROVED or DENIED and passes that finalization down to the corresponding InventoryTransactions related to the invoice, and if the invoice is being approved, updates inventory levels. Given that the invoice is approved, it will also update price in product to keep prices current.
 
-## Input Parameters
+### Input Parameters
 1. invoice_id: identifier of the invoice that is being resolved
 2. approval_status: resolution status we are setting the invoice to, either APPROVED or DENIED
 3. approved_by: employee num of the manager who approved the invoice
@@ -38,7 +38,7 @@ Finalizes inventory transaction and update Inventory levels associated with that
 - Lock inventory transaction selected for update
 - Validate that new_status is either APPROVED or DENIED
 - Validate approved_by is a valid employee number with manager status
-- Verify that transaction type is valid and not RECEIVE 
+- Verify that transaction type is valid and not RECEIVE  or PREP
 - Validate product number associated with transaction
 - Validate that transaction was created by valid employee
 - Verify that employee num for approved_by is valid and is a manager
@@ -98,7 +98,7 @@ Creates an inventory transaction of WASTE type, recording product number, quanti
 4. waste_product_num: the product number of the used product, if unknown NULL
 5. waste_reason: reason/explanation for the transaction
 
-# Goals
+### Goals
 - Verify trans_quantity is strictly positive
 - Verifies product num is a valid product
 - Ensures that a reason was given for waste transactin
@@ -232,11 +232,17 @@ Creates a recipe which ingredients can reference.
 ### Input Parameters
 1. new_recipe_name: name of the new recipe
 2. new_active: True if new recipe is active otherwise false
+3. new_shelflife_hour: number of hours before the recipe expires 
+4. recipe_yeild: amount of of the recipe is yeilded in recipe unites
+5. new_unit: quantity that the recipe is measure in
 
 ### Goals
 - Verify that new_recipe_name is a valid string
 - Verify that new_active is not NULL
-- Insert into Recipe
+- Verify new_shelflife_hour is not NULL and is strictly positive
+- Verify that recipe_yield is not NULL and strictly positive
+- Verify that new_unit is not NULL
+- Insert into Recipe with recipe status as `PENDING`
 
 ---
 
@@ -249,10 +255,77 @@ Creates one ingredient that will be used in a recipe.
 3. new_quantity: the amount of ingredient the recipe calls for in internal units
 
 ### Goals
-- Verify ingredient_recipe is valid and refers to a recipe that exists and is active
+- Verify ingredient_recipe is valid and refers to a recipe that exists and is pending
 - Verify that new_item string is valid and refers to an item
 - Verify that new_quantity is strictly positive
 - Insert into Ingredient
+---
+
+## createPrepPlan
+Creates a prep plan for producing a quantity of a recipe on a given date and shift.
+
+### Input Parameters
+1. **new_plan_recipe INT**: the recipe which the plan is calling to make
+2. **new_plan_date DATE**: The date which the recipe should be prepared
+3. **new_quantity DECIMAL(10,3)**: The quantity of recipe that should be prepared
+4. **new_plan_shift VARCHAR(20)**: Shift which is responsible for executing the plan
+5. **new_planner VARCHAR(20)**: The emplyee who made the plan
+
+### Verifies
+- **new_plan_recipe** is not NULL and refers to a valid recipe that is active
+- **new_plan_date** is not NULL and has date of today or after
+- **new_quantity** is not NULL and strictly positive
+- **new_plan_shift** is either null, empty string or refers to a valid shift
+- **new_planner** is not NULL or empty string and refers to a valid employee
+
+### Behavior
+- Inserts PENDING prep plan into PrepPlan table
+---
+
+## createUnplannedBatch
+Creates a batch, which refers to a quantity of recipes prepared on a certain time by a certain person, giving the ability to track usage and ensure batch is wasted at expiraton
+
+Creates a batch that is not associated with a prep plan.
+
+### Input Parameters
+1. **batch_recipe INT**: refers to the recipe which the batch prepared
+2. **recipe_quantity DECIMAL(10,3)**: The quantity of recipe which was created in that batch
+3. **batch_creator VARCHAR(20)**: The employee who prepared the batch
+
+### Verifies
+- Make sure that **batch_recipe** is not NULL and refers to an active recipe
+- Make sure that **recipe_quantity** is not NULL and is strictly positive
+- **batch_creator** is not NULL and refers to a valid employee
+
+### Behavior
+- Inserts a pending batch which was not based on a prep plan awaiting allocation
+
+---
+
+## executePrepPlan
+Takes the number corresponding to a prep plan and converts the plan into a batch awaiting product allocationt to finalize.
+
+### Input Parameters
+1. **plan_execute INT**: the plan in PrepPlan which we are executing
+2. **batch_creator VARCHAR(20)**: the employee who will be creating the batch
+
+### Verifies
+- Verify **plan_execute** is not NULL and refers to a valid plan
+- Verify **batch_creator** is not NULL, not an empty string, and refers to a valid employee
+- Verify that recipe assocated with **plan_num** is not NULL and refers to an active recipe
+- Verify that the date associated with **plan_num** is not NULL and is the day of batch creation, today
+- Verify that the quantity associated with **plan_num** is not NULL and strictly positive
+- Verify that shift assocated with **plan_num** is either NULL or refers to a valid shift
+- Given shift is not NULL, ensure that the current time is within the shift time interval
+- Verify that the plan was in a `PENDING` status
+- Verify that there is not already a batch derrived from PrepPlan
+
+### Behavior
+- Pull all required batch information from PrepPlan
+- Insert new batch into Batch table
+
+---
+
 
 ## createInventorySnapshotRecord
 Creates an inventory snapsshot record which will have snapshots which count the products for that record refering to it.
@@ -262,6 +335,88 @@ Creates an inventory snapsshot record which will have snapshots which count the 
 ### Goals
 - Verifies recorder is a valid manager
 - Insert into InventorySnapshotRecord with the CURRENT_TIMESTAMP and PENDING status
+
+---
+
+## createPrepTransaction
+Describes a product being used as a PREP transaction to create a batch.
+
+### Input Parameters
+1. **batch_prep INT**: the batch which the product is being used for
+2. **product_prep INT**: the product which is contributing to the batch
+3. **quantity_prep DECIMAL(10,3)**: the amount of product that is being prepped to created the batch
+
+### Verifies
+- **batch_prep** is not NULL and refers to pending batch
+- **product_prep** is not NULL and refers to a product
+- price and conversion factor associated with **product_prep** are not NULL and strictly positive
+- internal_num associated with **product_prep** is not NULL and refers to an item
+- recipe associated with **batch_prep** is not NULL and refers to a recipe
+- quantity associated with **batch_prep** is not NULL and strictly positive
+- batch_status associated with **batch_prep** is not NULL and `PENDING`
+- creator of **batch_prep** is not NULL and associated with an employee number 
+- internal_num associated with **product_prep** is an ingredient of the recipe associated with **batch_prep**
+- **product_prep** is associated with an item that is an ingredient of the recipe associated with **batch_prep**
+- **quantity_prep** is not NULL and strictly positive
+- sum of **quantity_prep** and prep transactions associated with  **batch_prep** that have a product with the same internal number as **product_prep** does not exceed the amount of that ingredient
+
+### Behavior
+- Calculate how much **quantity_prep** of **product_prep** is worth based off the price of the product
+- Insert new `PENDING` prep transaction into InventoryTransaction
+
+## activateBatch
+Verifies that enough products have been allocated to this batch in `InventoryTransaction` to create the batch.
+
+Activates the batch so that it can be used — represents the actual creation of the batch by setting the creation time and expiration date.
+
+### Input Parameters
+1. **active_batch INT**: the batch that is being activated  
+2. **batch_approver VARCHAR(20)**: employee number of the manager approving the batch  
+
+### Verifies
+- batch number is not `NULL`
+- batch exists in `Batch`
+- batch approver is not `NULL` or blank
+- batch approver exists in `Employee`
+- batch approver is a manager
+- batch status is `PENDING`
+- batch has a valid `recipe_num`
+- referenced recipe exists and is active
+- batch `prepared_quantity` is greater than `0`
+- batch has a valid creator
+- batch creator exists in `Employee`
+- recipe has a valid positive shelf life
+- each ingredient references a valid item
+- each ingredient quantity is greater than `0`
+- total allocated `PREP` quantities match required ingredient quantities for the batch
+- at least one pending `PREP` transaction exists for the batch
+- each `PREP` transaction has a valid transaction number
+- each `PREP` transaction references a valid product
+- each `PREP` transaction has a valid creator
+- each `PREP` transaction quantity is greater than `0`
+- each referenced product exists in `ProductInventory`
+- sufficient inventory exists for each allocated product
+- referenced `PrepPlan` exists when provided
+
+### Behavior
+- starts a transaction to ensure atomic execution
+- locks the batch row using `FOR UPDATE`
+- retrieves batch details (recipe, quantity, plan, creator)
+- retrieves recipe shelf life
+- iterates through recipe ingredients
+- calculates total required quantity per ingredient
+- validates that allocated `PREP` transactions satisfy requirements
+- iterates through pending `PREP` transactions
+- locks each corresponding `ProductInventory` row
+- deducts allocated quantities from `ProductInventory`
+- updates `PREP` transactions to `APPROVED`
+- records the approving manager in `approved_by`
+- updates batch status to `ACTIVE`
+- sets expiration timestamp based on recipe shelf life
+- marks associated `PrepPlan` as `COMPLETED` when applicable
+- inserts a `CREATE` record into `BatchTransaction`
+- commits the transaction on success
+- rolls back the transaction on failure
 
 
 ## createInventorySnapshot
