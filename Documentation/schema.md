@@ -179,12 +179,17 @@ Describes possible recipes that can be made.
 ### Columns
 - **recipe_num(INT)**: Unique identifier for recipe (PRIMARY KEY, AUTO_INCREMENT)
 - **recipe_name(VARCHAR(64))**: Name of the recipe
-- **is_active(BOOLEAN)**: True if active recipe otherwie False
+- **recipe_status(ENUM)**: status of recipe either `PENDING`, `ACTIVE`, or `INACTIVE`
 - **shelf_life(INT)**: Number of hours that a recipe is good for
 - **recipe_unit (VARCHAR(20))**: The unit in which the recipe is changed
 - **yield DECIMAL(10,3)**: Amount of food that recipe creates in recipe_unit
 
 ---
+
+### Notes
+- `PENDING` status means that ingredients are still being allocated to recipe. recipe must be `PENDING` to add ingredients
+- `ACTIVE` status means that the recipe is being used
+- `INACTIVE` status means that the recipe is not longer being used
 
 ## Ingredient
 Lists the ingredients that contribute to a recipe to keep track of recipe usage.
@@ -222,7 +227,7 @@ Describes recipes that have been created
 - **recipe_num(INT)**: The batch makes this recipe (FOREIGN KEY → Recipe.recipe_num)
 - **created_on(DATETIME)**: The datetime which it was created
 - **created_by VARCHAR(20)**: Employee who created the batch
-- **quantity_prepared(DECIMAL(10,3))**: The amount of recipe that was prepared
+- **quantity_prepared(DECIMAL(10,3))**: The amount of recipe that was prepared in the units of the recipe
 - **quantity_remaining(DECIMAL(10,3))**: The amount of recipe remaining, describes the amount expired if status is expired.
 - **expires_at(DATETIME)**: Time at which the recipe expires
 - **plan_num (INT)**: The plan that was followed to create this batch, NULL if unplanned (FOREIGN KEY → PrepPlan.plan_num)
@@ -236,18 +241,20 @@ Stores a ledger of all batch-level transactions
 Every change in batch level is stored here, including using, wasting, creating, and expiring
 
 ### Columns
-- **batch_transaction_num (INT)**: Unqiue identifier for batch transaction (PRIMARY KEY, AUTO_INCREMENT)
+- **transaction_num (INT)**: Unqiue identifier for batch transaction (PRIMARY KEY, AUTO_INCREMENT)
 - **batch_num(INT)**: Refers to the batch which the transaction is affecting (FOREIGN KEY → Batch.batch_num)
-- **transaction_type (ENUM)**: Describes the type of transaction, either `CREATE`, `USE`, `WASTE`, `EXPIRE`, 
+- **transaction_type (ENUM)**: Describes the type of transaction, either `CREATE`, `USE`, `ADJUST`, `WASTE`, `EXPIRE`, 
 - **quantity (DECIMAL(10,3))**: the quantity of the batch that is being affected recorded in units from Recipe
 - **created_by (VARCHAR(20))**: the employee who created transaction
-- **created_at (DATETIME)**: the datetime which the transaction was created
+- **transaction_date (DATETIME)**: the datetime which the transaction was created
+- **reason (VARCHAR(64))**: reason for the transaction, required for `WASTE` and `ADJUST`
 
 ### Notes
 - `CREATE` occurs when a batch is activated
 - `USE` represents consumption of prepared inventory
 - `WASTE` represents discarded prepared inventory
 - `EXPIRE` represents unused quantity at expiration
+- `ADJUST` represents manager correcting batch levels
 
 
 ## Relationship Summary
