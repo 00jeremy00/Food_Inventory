@@ -182,7 +182,19 @@ CREATE TABLE IF NOT EXISTS InventorySnapshotRecord(
     CONSTRAINT valid_snap_status CHECK (snapshot_status IN ('PENDING', 'COMPLETED'))
 );
 
-CREATE TABLE IF NOT EXISTS InventorySnapshot(
+CREATE TABLE IF NOT EXISTS RecipeSnapshot(
+	snapshot_id INT NOT NULL,
+    recipe_num INT NOT NULL,
+    expected_quantity DECIMAL(10,3) NOT NULL,
+    counted_quantity DECIMAL(10,3) NOT NULL,
+    PRIMARY KEY(snapshot_id, recipe_num),
+    FOREIGN KEY(snapshot_id) REFERENCES InventorySnapshotRecord(snapshot_id),
+    FOREIGN KEY(recipe_num) REFERENCES Recipe(recipe_num),
+    CONSTRAINT recipe_expected_positive CHECK (expected_quantity >= 0),
+	CONSTRAINT recipe_counted_positive CHECK (counted_quantity >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS ProductSnapshot(
 	snapshot_id INT NOT NULL,
     product_num INT NOT NULL,
     expected_quantity DECIMAL(10,3) NOT NULL,
@@ -194,6 +206,4 @@ CREATE TABLE IF NOT EXISTS InventorySnapshot(
     CONSTRAINT counted_product_positive CHECK (counted_quantity >= 0)
 );
 
-SELECT DATABASE();
 SHOW TABLES;
-SHOW ERRORS;

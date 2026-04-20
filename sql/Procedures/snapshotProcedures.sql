@@ -41,7 +41,7 @@ BEGIN
 );
 END$$
 
-CREATE PROCEDURE createInventorySnapshot(
+CREATE PROCEDURE createProductSnapshot(
     IN inventory_snapshot INT,
     IN inventory_product INT,
     IN counted_total DECIMAL(10,3)

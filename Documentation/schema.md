@@ -156,7 +156,7 @@ A snapshot record represents a counting event, including when it occurred, who m
 
 ---
 
-## InventorySnapshot
+## ProductSnapshot
 Stores product-level expected and counted quantities for a specific snapshot.
 
 This table is used to compare what the system expected to be on hand for each product against what was physically counted.
@@ -203,6 +203,20 @@ Lists the ingredients that contribute to a recipe to keep track of recipe usage.
 - **(recipe_num, internal_num)**: Composite primary key ensuring no more than one item can be assigned to a recipe 
 ---
 
+## RecipeSnapshot
+Stores recipe-level expected and counted quantities for a specific snapshot.
+
+This table is used to compare what the system expected to have prepared for each recipe against what was physically counted.
+
+### Columns
+- **snapshot_id INT**: snapshot this entry belongs to (FOREIGN KEY → InventorySnapshot.snapshot_id)
+- **recipe_num INT**: recipe being measured (FOREIGN KEY → Recipe.recipe_num)
+- **expected_quantity DECIMAL(10,3)**: total expected quantity based on all active batches for this recipe (CHECK expected_quantity >= 0)
+- **counted_quantity DECIMAL(10,3)**: quantity of recipes physically counted (CHECK counted_quantity >= 0)
+
+### Primary Key
+- **(snapshot_id, recipe_num)**: ensures one record per recipe per snapshot
+---
 
 ## PrepPlan
 Stores planned recipe production for a given date.
