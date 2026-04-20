@@ -10,33 +10,40 @@ DELIMITER $$
 
 CREATE PROCEDURE addRecipe(
 	IN new_recipe_name VARCHAR(64),
-    IN new_active BOOLEAN,
-    in shelf_life_hour DECIMAL(10,3)
+    IN shelf_life_hour DECIMAL(10,3),
+    IN recipe_yield DECIMAL(10,3),
+    IN new_unit VARCHAR(20)
 )
 BEGIN
 	-- validates recipe name
 	IF new_recipe_name IS NULL OR TRIM(new_recipe_name) = '' THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Recipe must have name';
+        SET MESSAGE_TEXT = 'addRecipe [E01]: Recipe must have name';
         
-	-- ensures active status is not NULL
-	ELSEIF new_active IS NULL THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Invalid active status';
 	ELSEIF shelf_life_hour IS NULL OR shelf_life_hour <= 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'shelf life must be strictly positive';
+        SET MESSAGE_TEXT = 'addRecipe [E02]: shelf life must be strictly positive';
+	ELSEIF recipe_yield IS NULL OR recipe_yield <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'addRecipe [E03]: recipe yield must be strictly positive';
+	ELSEIF new_unit IS NULL OR TRIM(new_unit) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'addRecipe [E04]: recipe unit is NULL';
 	END IF;
     
     
     INSERT INTO Recipe(
 		recipe_name,
-        is_active,
-        shelflife
+        recipe_status,
+        shelflife,
+        yield,
+        recipe_unit
 	) VALUES(
        TRIM(new_recipe_name),
-       new_active,
-       shelf_life_hour
+       'PENDING',
+       shelf_life_hour,
+       recipe_yield,
+       new_unit
 	);
     
 END $$
@@ -48,11 +55,12 @@ CREATE PROCEDURE addIngredient(
 )
 BEGIN
 	DECLARE v_count INT;
+    DECLARE v_status VARCHAR(20);
     
     -- verifies recipe number is valid
     IF ingredient_recipe IS NULL OR ingredient_recipe < 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Invalid Recipe Number';
+        SET MESSAGE_TEXT = 'addIngredient [E01] Invalid Recipe Number';
 	END IF;
     
     SELECT COUNT(*)
@@ -63,12 +71,23 @@ BEGIN
     -- verifies recipe number referes to a real recipe
     IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Recipe not found';
+        SET MESSAGE_TEXT = 'addIngredient [E02] Recipe not found';
+	END IF;
+    
+    -- verifies recipe is PENDING
+    SELECT recipe_status
+    INTO v_status
+    FROM Recipe
+    WHERE recipe_num = ingredient_recipe;
+    
+    IF v_status <> 'PENDING' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'addIngredient [E03] Recipe must be PENDING to add ingredients';
     
     -- verifies that item has a valid string
     ELSEIF new_item IS NULL or TRIM(new_item) = '' THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'item number invalid';
+        SET MESSAGE_TEXT = 'addIngredient [E04] item number invalid';
 	END IF;
     
     SELECT COUNT(*) 
@@ -78,10 +97,10 @@ BEGIN
     
     IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Item does not exist';
+        SET MESSAGE_TEXT = 'addIngredient [E05] Item does not exist';
 	ELSEIF new_quantity <= 0 OR new_quantity is NULL THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Ingredient quantity is invalid';
+        SET MESSAGE_TEXT = 'addIngredient [E06] Ingredient quantity is invalid';
 	END IF;
     
     INSERT INTO Ingredient(
@@ -105,7 +124,7 @@ CREATE PROCEDURE createPrepPlan(
 )
 BEGIN
 	DECLARE v_count INT;
-    DECLARE recipe_active BOOLEAN;
+    DECLARE v_status VARCHAR(20);
     
     -- Verify that recipe is valid
     IF new_plan_recipe IS NULL THEN
@@ -124,14 +143,14 @@ BEGIN
         SET MESSAGE_TEXT = 'createPrepPlan [E02]: recipe does not exist';
 	END IF;
     
-    SELECT is_active 
-    INTO recipe_active
+    SELECT recipe_status 
+    INTO v_status
     FROM Recipe
     WHERE recipe_num = new_plan_recipe;
     
-    IF NOT recipe_active THEN
+    IF recipe_status <> 'ACTIVE' THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'createPrepPlan [E03]: recipe is inactive';
+        SET MESSAGE_TEXT = 'createPrepPlan [E03]: recipe must be active to create prep plan';
 	END IF;
     
     IF new_plan_date IS NULL OR new_plan_date < CURRENT_DATE THEN
@@ -195,6 +214,8 @@ CREATE PROCEDURE createUnplannedBatch(
 )
 BEGIN
 	DECLARE v_count INT;
+    DECLARE recipe_yield DECIMAL(10,3);
+    DECLARE v_status VARCHAR(20);
     
     IF batch_recipe IS NULL THEN
 		SIGNAL SQLSTATE '45000'
@@ -209,14 +230,24 @@ BEGIN
 	IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
 		SET MESSAGE_TEXT = 'createBatch [E02]: Recipe does not exist';
+	END IF;
+    
+    SELECT recipe_status
+    INTO v_status
+    FROM Recipe
+    WHERE recipe_num = batch_recipe;
+    
+    IF v_status <> 'ACTIVE' THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'createBatch [E03]: Recipe is not ACTIVE';
 	
     ELSEIF recipe_quantity IS NULL or recipe_quantity <= 0 THEN
 		SIGNAL SQLSTATE '45000'
-		SET MESSAGE_TEXT = 'createBatch [E03]: Invalid recipe quantity';
+		SET MESSAGE_TEXT = 'createBatch [E04]: Invalid recipe quantity';
         
 	ELSEIF batch_creator IS NULL OR TRIM(batch_creator) = '' THEN
 		SIGNAL SQLSTATE '45000'
-		SET MESSAGE_TEXT = 'createBatch [E04]: Batch creator is NULL';
+		SET MESSAGE_TEXT = 'createBatch [E05]: Batch creator is NULL';
 	END IF;
     
 	SELECT COUNT(*)
@@ -226,8 +257,20 @@ BEGIN
     
     IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
-		SET MESSAGE_TEXT = 'createBatch [E05]: Employee not found';
+		SET MESSAGE_TEXT = 'createBatch [E06]: Employee not found';
 	END IF;
+    
+    SELECT yield
+    INTO recipe_yield
+    FROM Recipe
+    WHERE recipe_num = batch_recipe;
+    
+    IF recipe_yield IS NULL OR recipe_yield <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'createBatch [E07]: Invalid recipe yield';
+	END IF;
+    
+    SET recipe_quantity = recipe_quantity * recipe_yield;
     
     INSERT INTO Batch(
 		recipe_num,
@@ -248,7 +291,6 @@ BEGIN
         NULL,
         'PENDING'
     );
-        
 END$$
 
 CREATE PROCEDURE executePrepPlan(
@@ -264,6 +306,7 @@ BEGIN
     DECLARE verify_status VARCHAR(20);
     DECLARE verify_start TIME;
     DECLARE verify_end TIME;
+    DECLARE recipe_yield DECIMAL(10,3);
     
     IF plan_execute IS NULL THEN
 		SIGNAL SQLSTATE '45000'
@@ -307,21 +350,36 @@ BEGIN
     INTO v_count
     FROM Recipe
     WHERE recipe_num = verify_recipe
-    AND is_active = TRUE;
+		AND recipe_status = 'ACTIVE';
     
     IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'executePrepPlan [E06]: Recipe not found';
+        SET MESSAGE_TEXT = 'executePrepPlan [E06]: No active recipe found';
+	END IF;
+    
+    SELECT yield 
+    INTO recipe_yield
+    FROM Recipe
+    WHERE recipe_num = verify_recipe
+		AND recipe_status = 'ACTIVE';
+	
+    IF recipe_yield IS NULL OR recipe_yield <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'executePrepPlan [E07]: Recipe yield is invalid';
 	ELSEIF verify_date IS NULL THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'executePrepPlan [E07]: plan_date is NULL';
+        SET MESSAGE_TEXT = 'executePrepPlan [E08]: plan_date is NULL';
 	ELSEIF verify_date <> CURRENT_DATE THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'executePrepPlan [E08]: Batch date must match plan date';
+        SET MESSAGE_TEXT = 'executePrepPlan [E09]: Batch date must match plan date';
 	ELSEIF verify_quantity IS NULL OR verify_quantity <= 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'executePrepPlan [E09]: Invalid quantity';
-	ELSEIF verify_shift IS NOT NULL OR TRIM(verify_shift) <> '' THEN
+        SET MESSAGE_TEXT = 'executePrepPlan [E010]: Invalid quantity';
+	END IF;
+    
+    SET verify_quantity = verify_quantity * recipe_yield;
+    
+    IF verify_shift IS NOT NULL OR TRIM(verify_shift) <> '' THEN
 		SELECT COUNT(*)
 		INTO v_count
 		FROM Shift
@@ -494,8 +552,7 @@ BEGIN
     SELECT COUNT(*)
     INTO v_count
     FROM Recipe
-    WHERE recipe_num = batch_recipe
-		AND is_active = TRUE;
+    WHERE recipe_num = batch_recipe;
     
     IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
@@ -577,7 +634,7 @@ BEGIN
     DECLARE verify_status VARCHAR(20);
     DECLARE batch_recipe INT;
     DECLARE batch_plan INT;
-    DECLARE recipe_quantity DECIMAL(10,3);
+    DECLARE batch_quantity DECIMAL(10,3);
 	DECLARE done INT DEFAULT FALSE;
     DECLARE ingredient_item VARCHAR(20);
     DECLARE needed_quantity DECIMAL(10,3);
@@ -586,11 +643,10 @@ BEGIN
     DECLARE recipe_life DECIMAL(10,3);
     DECLARE prep_transaction INT;
     DECLARE transaction_creator VARCHAR(20);
-	DECLARE alloc_product INT;
-	DECLARE alloc_quantity DECIMAL(10,3);
 	DECLARE current_inventory DECIMAL(10,3);
+    DECLARE batch_creator VARCHAR(20);
 
-    DECLARE cur CURSOR FOR				-- gets transaction info for transactions of selected invoice
+    DECLARE cur CURSOR FOR				-- gets ingredient information for selected recipe
         SELECT internal_num, quantity
         FROM Ingredient
         WHERE recipe_num = batch_recipe;
@@ -642,8 +698,8 @@ BEGIN
     
     START TRANSACTION;
 
-	SELECT batch_status, recipe_num, plan_num, prepared_quantity
-    INTO verify_status, batch_recipe, batch_plan, recipe_quantity
+	SELECT batch_status, recipe_num, plan_num, prepared_quantity, created_by
+    INTO verify_status, batch_recipe, batch_plan, batch_quantity, batch_creator
     FROM Batch
     WHERE batch_num = active_batch
     FOR UPDATE;
@@ -660,15 +716,31 @@ BEGIN
     INTO v_count
     FROM Recipe
     WHERE recipe_num = batch_recipe
-		AND is_active = TRUE;
+		AND recipe_status = 'ACTIVE';
     
     IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'activateBatch [E07] active recipe not found';
-	ELSEIF recipe_quantity IS NULL OR recipe_quantity <= 0 THEN
+	ELSEIF batch_quantity IS NULL OR batch_quantity <= 0 THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'activateBatch [E08] Batch\'s recipe quantity is invalid';
-	END IF;
+	ELSEIF batch_creator IS NULL OR TRIM(batch_creator) = '' THEN
+   		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'activateBatch [E09] Batch must have a creator'; 
+    END IF;
+    
+    SELECT COUNT(*) 
+    INTO v_count
+    FROM Employee
+    WHERE employee_num = batch_creator;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'activateBatch [E10] Batch creator does not exist';
+	ELSEIF batch_approver IS NULL OR TRIM(batch_approver) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'activateBatch [E11] Batch must have manager approve';
+    END IF;
     
     SELECT shelflife
     INTO recipe_life
@@ -677,7 +749,7 @@ BEGIN
     
     IF recipe_life IS NULL OR recipe_life <= 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'activateBatch [E09] invalid shelflife';
+        SET MESSAGE_TEXT = 'activateBatch [E12] invalid shelflife';
 	END IF;
     OPEN cur;
     
@@ -689,7 +761,7 @@ BEGIN
         
         IF ingredient_item IS NULL OR TRIM(ingredient_item) = '' THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E10] ingredient item is NULL';
+            SET MESSAGE_TEXT = 'activateBatch [E13] ingredient item is NULL';
 		END IF;
         
         SELECT COUNT(*)
@@ -699,13 +771,13 @@ BEGIN
         
         IF v_count = 0 THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E11] ingredient item not found';
+            SET MESSAGE_TEXT = 'activateBatch [E14] ingredient item not found';
 		ELSEIF needed_quantity IS NULL OR needed_quantity <= 0 THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E12] ingredeint quantity is invalid';
+            SET MESSAGE_TEXT = 'activateBatch [E15] ingredeint quantity is invalid';
         END IF;
         
-        SET needed_quantity = needed_quantity * recipe_quantity;
+        SET needed_quantity = needed_quantity * batch_quantity;
         
         SELECT COALESCE(SUM(it.quantity),0)
         INTO prep_quantity
@@ -716,15 +788,26 @@ BEGIN
             AND it.transaction_type = 'PREP'
             AND it.approval_status = 'PENDING';
 		
-        IF prep_quantity <> needed_quantity THEN
+        IF prep_quantity < needed_quantity OR prep_quantity > needed_quantity + 1 THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E13] Product allocations do not meet ingredient quantity required';
+            SET MESSAGE_TEXT = 'activateBatch [E16] Product allocations do not meet ingredient quantity required';
 		END IF;
         
 	END LOOP;
     CLOSE cur;
     SET done = FALSE;
     
+    SELECT COUNT(*)
+	INTO v_count
+	FROM InventoryTransaction
+	WHERE batch_num = active_batch
+		AND transaction_type = 'PREP'
+		AND approval_status = 'PENDING';
+
+	IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'activateBatch [E17]: no prep transactions found';
+	END IF;
     
     OPEN cur_prep;
     prep_loop: LOOP
@@ -735,7 +818,7 @@ BEGIN
         END IF;
         IF prep_transaction IS NULL THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E14] prep transaction number invalid';
+            SET MESSAGE_TEXT = 'activateBatch [E18] prep transaction number invalid';
 		END IF;
         
         SELECT COUNT(*)
@@ -745,13 +828,13 @@ BEGIN
         
         IF v_count = 0 THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E15] prep transaction not found';
+            SET MESSAGE_TEXT = 'activateBatch [E19] prep transaction not found';
         ELSEIF prep_product IS NULL THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E16] product prepared is NULL';
+            SET MESSAGE_TEXT = 'activateBatch [E20] product prepared is NULL';
 		ELSEIF transaction_creator IS NULL OR TRIM(transaction_creator) = '' THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E17] prep transaction creator is NULL';
+            SET MESSAGE_TEXT = 'activateBatch [E21] prep transaction creator is NULL';
 		END IF;
         
 		SELECT COUNT(*) 
@@ -761,7 +844,7 @@ BEGIN
         
         IF v_count = 0 THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E18] prep transaction creator not found';
+            SET MESSAGE_TEXT = 'activateBatch [E22] prep transaction creator not found';
 		END IF;
         
         SELECT COUNT(*)
@@ -771,10 +854,10 @@ BEGIN
         
         IF v_count = 0 THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E19] Product transaction has invalid product';
+            SET MESSAGE_TEXT = 'activateBatch [E23] Product transaction has invalid product';
 		ELSEIF prep_quantity IS NULL OR prep_quantity <= 0 THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E20] Product allocation quantity is invalid';
+            SET MESSAGE_TEXT = 'activateBatch [E24] Product allocation quantity is invalid';
 		END IF;
         
         SELECT quantity 
@@ -785,14 +868,14 @@ BEGIN
         
         IF current_inventory IS NULL OR current_inventory < 0 THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E21] ProductInventory has invalid quantity';
+            SET MESSAGE_TEXT = 'activateBatch [E25] ProductInventory has invalid quantity';
 		END IF;	
         
         SET current_inventory = current_inventory - prep_quantity;
         
         IF current_inventory < 0 THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E22] Not enough product for batch allocation';
+            SET MESSAGE_TEXT = 'activateBatch [E26] Not enough product for batch allocation';
 		END IF;
         
         UPDATE ProductInventory
@@ -821,15 +904,29 @@ BEGIN
         
         IF v_count = 0 THEN
 			SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'activateBatch [E23] plan num is not NULL and not found';
+            SET MESSAGE_TEXT = 'activateBatch [E27] plan num is not NULL and not found';
 		END IF;
         
 		UPDATE PrepPlan
         SET plan_status = 'COMPLETED'
         WHERE plan_num = batch_plan;
     END IF;
+    INSERT INTO BatchTransaction(
+		batch_num,
+		quantity,
+		transaction_type,
+		transaction_date,
+		created_by,
+        reason
+    ) VALUES(
+		active_batch,
+        batch_quantity,
+        'CREATE',
+        CURRENT_TIMESTAMP,
+        batch_creator,
+        NULL
+    );
     COMMIT;
 END$$
 
-SHOW ERRORS;
 DELIMITER ;

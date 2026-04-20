@@ -1,4 +1,4 @@
-
+CREATE DATABASE IF NOT EXISTS FOOD;
 USE FOOD;
 
 CREATE TABLE IF NOT EXISTS Category(
@@ -74,9 +74,12 @@ CREATE TABLE IF NOT EXISTS ProductInventory(
 CREATE TABLE IF NOT EXISTS Recipe(
 	recipe_num INT AUTO_INCREMENT PRIMARY KEY,
     recipe_name VARCHAR(64) NOT NULL,
-    is_active BOOLEAN NOT NULL,
+    recipe_status ENUM('PENDING', 'ACTIVE', 'INACTIVE') DEFAULT 'PENDING',
     shelflife DECIMAL(10,3) NOT NULL,
-    CONSTRAINT CHECK (shelflife > 0)
+    yield DECIMAL(10,3) NOT NULL,
+    recipe_unit VARCHAR(20),
+    CONSTRAINT valid_recipe_status CHECK (recipe_status IN ('PENDING', 'ACTIVE', 'INACTIVE')),
+    CONSTRAINT shelflife_positive CHECK (shelflife > 0)
 );
 
 CREATE TABLE IF NOT EXISTS Ingredient(
@@ -115,48 +118,55 @@ CREATE TABLE IF NOT EXISTS Batch(
     recipe_num INT NOT NULL,
     created_on DATETIME,
     created_by VARCHAR(20) NOT NULL,
+    approved_by VARCHAR(20),
     plan_num INT DEFAULT NULL,
     prepared_quantity DECIMAL(10,3) NOT NULL,
     remaining_quantity DECIMAL(10,3) NOT NULL,
     depleted_at DATETIME DEFAULT NULL,
     expires_at DATETIME NOT NULL,
     batch_status ENUM('PENDING', 'ACTIVE', 'DEPLETED', 'EXPIRED') DEFAULT 'PENDING' NOT NULL,
+    FOREIGN KEY(approved_by) REFERENCES Employee(employee_num),
     FOREIGN KEY (recipe_num) REFERENCES Recipe(recipe_num),
     FOREIGN KEY (created_by) REFERENCES Employee(employee_num),
     FOREIGN KEY (plan_num) REFERENCES PrepPlan(plan_num),
     CONSTRAINT prep_quantity_positive CHECK (prepared_quantity > 0),
 	CONSTRAINT remain_quantity_non_neg CHECK (remaining_quantity >= 0),
-	CONSTRAINT batch_status_valid CHECK (batch_status IN ('ACTIVE', 'DEPLETED', 'EXPIRED')),
+	CONSTRAINT batch_status_valid CHECK (batch_status IN ('PENDING', 'ACTIVE', 'DEPLETED', 'EXPIRED')),
     CONSTRAINT expires_after_creation CHECK (expires_at > created_on)
     );
     
-    CREATE TABLE IF NOT EXISTS BatchAllocation(
+    CREATE TABLE IF NOT EXISTS BatchTransaction(
+	transaction_num INT AUTO_INCREMENT PRIMARY KEY,
     batch_num INT NOT NULL,
-    product_num INT NOT NULL,
     quantity DECIMAL(10,3) NOT NULL,
-    PRIMARY KEY (batch_num, product_num),
+    transaction_type ENUM('CREATE', 'USE', 'ADJUST', 'WASTE', 'EXPIRE') NOT NULL,
+    transaction_date DATETIME DEFAULT NULL,
+    created_by VARCHAR(20) NOT NULL,
+    reason VARCHAR(64) DEFAULT NULL,
     FOREIGN KEY (batch_num) REFERENCES Batch(batch_num),
-    FOREIGN KEY (product_num) REFERENCES Product(product_num),
-    CONSTRAINT alloc_quantity_positive CHECK (quantity > 0)
+    FOREIGN KEY (created_by) REFERENCES Employee(employee_num),
+    CONSTRAINT batch_quantity_positive CHECK (quantity > 0)
 );
 
 CREATE TABLE IF NOT EXISTS InventoryTransaction(
 	transaction_num INT AUTO_INCREMENT PRIMARY KEY,
-	transaction_type ENUM('RECEIVE', 'USE', 'WASTE', 'ADJUST') NOT NULL,
+	transaction_type ENUM('RECEIVE', 'USE', 'WASTE', 'ADJUST', 'PREP') NOT NULL,
     quantity DECIMAL(10,3) NOT NULL,
     transaction_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     approved_by VARCHAR(20),
     created_by VARCHAR(20),
     approval_status ENUM('APPROVED', 'PENDING', 'DENIED') DEFAULT 'PENDING' NOT NULL,
     invoice_id INT,
-    product_num INT,
-    price_per_unit DECIMAL(10,3),
+    product_num INT NOT NULL,
+    price_per_unit DECIMAL(10,3) NOT NULL,
+    batch_num INT,
     reason VARCHAR(64),
+    FOREIGN KEY (batch_num) REFERENCES Batch(batch_num),
     FOREIGN KEY (product_num) REFERENCES Product(product_num),
 	FOREIGN KEY (invoice_id) REFERENCES Invoice(invoice_id),
     FOREIGN KEY (approved_by) REFERENCES Employee(employee_num),
     FOREIGN KEY (created_by) REFERENCES Employee(employee_num),
-    CONSTRAINT valid_transaction_type CHECK (transaction_type IN ('RECEIVE', 'USE', 'WASTE', 'ADJUST')),
+    CONSTRAINT valid_transaction_type CHECK (transaction_type IN ('RECEIVE', 'USE', 'WASTE', 'ADJUST', 'PREP')),
     CONSTRAINT valid_trans_status CHECK (approval_status IN ('APPROVED', 'PENDING', 'DENIED')),
     CONSTRAINT trans_quantity_positive CHECK (quantity > 0),
     CONSTRAINT trans_price_positive CHECK (price_per_unit > 0 OR price_per_unit IS NULL)
@@ -184,6 +194,6 @@ CREATE TABLE IF NOT EXISTS InventorySnapshot(
     CONSTRAINT counted_product_positive CHECK (counted_quantity >= 0)
 );
 
-
-
+SELECT DATABASE();
 SHOW TABLES;
+SHOW ERRORS;
