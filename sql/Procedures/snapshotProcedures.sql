@@ -1,7 +1,7 @@
 DROP PROCEDURE IF EXISTS createInventorySnapshotRecord;
-DROP PROCEDURE IF EXISTS createInventorySnapshot;
+DROP PROCEDURE IF EXISTS createProductSnapshot;
 DROP PROCEDURE IF EXISTS completeSnapshot;
-
+DROP PROCEDURE IF EXISTS createRecipeSnapshot;
 DELIMITER $$
 
 CREATE PROCEDURE createInventorySnapshotRecord(
@@ -67,12 +67,13 @@ BEGIN
     SELECT COUNT(*)
     INTO v_count
     FROM InventorySnapshotRecord
-    WHERE snapshot_id = inventory_snapshot;
+    WHERE snapshot_id = inventory_snapshot
+		AND snapshot_status = 'PENDING';
 
 	-- verififes that the snapshot record exists
 	IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'snapshot id not found in snapshot records';
+        SET MESSAGE_TEXT = 'No PENDING snapshot id found';
 	END IF;
     
     -- Makes sure that product entry for snapshotInventory is a valid product
@@ -103,7 +104,7 @@ BEGIN
         SET MESSAGE_TEXT = 'Product inventory invalid';
 	END IF;
     
-    INSERT INTO InventorySnapshot(
+    INSERT INTO ProductSnapshot(
 		snapshot_id,
 		product_num,
 		expected_quantity,
@@ -117,6 +118,72 @@ BEGIN
     
 END$$
 
+CREATE PROCEDURE createRecipeSnapshot(
+	IN snap_id INT,
+    IN recipe_snapshot INT,
+    IN recipe_count DECIMAL(10,3)
+)
+BEGIN
+	DECLARE v_count INT;
+    DECLARE batch_quantity DECIMAL(10,3);
+    DECLARE running_total DECIMAL(10,3);
+    DECLARE done INT DEFAULT FALSE;
+        DECLARE cur CURSOR FOR
+		SELECT remaining_quantity
+        FROM Batch
+        WHERE batch_status = 'ACTIVE';
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    
+	IF snap_id IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createRecipeSnapshot [E01] snapshot id is NULL';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM InventorySnapshotRecord
+    WHERE snapshot_id = snap_id
+		AND snapshot_status = 'PENDING';
+        
+	IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createRecipeSnapshot [E02] snapshot not found';
+	ELSEIF recipe_snapshot IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createRecipeSnapshot [E03] recipe is NULL';
+	END IF;
+
+	SELECT COUNT(*)
+    INTO v_count
+    FROM Recipe
+    WHERE recipe_num = recipe_snapshot
+		AND recipe_status <> 'PENDING';
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createRecipeSnapshot [E04] recipe not found';
+	ELSEIF recipe_count IS NULL OR recipe_count >= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createRecipeSnapshot [E05] recipe counted quantity is invalid';
+	END IF;
+    
+    open cur;
+    read_loop: LOOP
+		FETCH cur INTO batch_quantity;
+	
+    IF done THEN
+		leave read_loop;
+	END IF;
+    
+    END LOOP;
+    close cur;
+        
+    
+    
+END$$
+
+SHOW ERRORS;
+
 CREATE PROCEDURE completeSnapshot(
 	IN completed_snapshot INT
 )
@@ -125,12 +192,10 @@ BEGIN
     DECLARE inventory_product INT;
     DECLARE snap_status VARCHAR(20);
     DECLARE done INT DEFAULT FALSE;
-
     DECLARE cur CURSOR FOR				-- gets transaction info for transactions of selected invoice
         SELECT product_num
         FROM ProductInventory
         WHERE quantity > 0;
-	DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
 
     IF completed_snapshot IS NULL OR completed_snapshot < 0 THEN
 		SIGNAL SQLSTATE '45000'
