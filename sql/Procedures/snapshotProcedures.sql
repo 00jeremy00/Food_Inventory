@@ -125,14 +125,20 @@ CREATE PROCEDURE createRecipeSnapshot(
 )
 BEGIN
 	DECLARE v_count INT;
-    DECLARE batch_quantity DECIMAL(10,3);
     DECLARE running_total DECIMAL(10,3);
     DECLARE done INT DEFAULT FALSE;
         DECLARE cur CURSOR FOR
 		SELECT remaining_quantity
         FROM Batch
-        WHERE batch_status = 'ACTIVE';
+        WHERE batch_status = 'ACTIVE'
+			AND recipe_num = recipe_snapshot;
+            
 	DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+		ROLLBACK;
+        RESIGNAL;
+    END;
     
 	IF snap_id IS NULL THEN
 		SIGNAL SQLSTATE '45000'
@@ -162,27 +168,53 @@ BEGIN
     IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'createRecipeSnapshot [E04] recipe not found';
-	ELSEIF recipe_count IS NULL OR recipe_count >= 0 THEN
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM RecipeSnapshot
+    WHERE snapshot_id = snap_id
+		 AND recipe_num = recipe_snapshot;
+         
+	IF v_count > 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'createRecipeSnapshot [E05] recipe counted quantity is invalid';
+        SET MESSAGE_TEXT = 'createRecipeSnapshot [E05] recipe snapshot already exists';
 	END IF;
     
-    open cur;
-    read_loop: LOOP
-		FETCH cur INTO batch_quantity;
+    IF recipe_count IS NULL OR recipe_count < 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createRecipeSnapshot [E06] recipe counted quantity is invalid';
+	END IF;
+    
+    START TRANSACTION;
+	SELECT COALESCE(SUM(remaining_quantity), 0)
+	INTO running_total
+	FROM Batch
+	WHERE batch_status = 'ACTIVE'
+		AND recipe_num = recipe_snapshot
+	FOR UPDATE;
 	
-    IF done THEN
-		leave read_loop;
+    IF running_total < 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'createRecipeSnapshot [E07] summation of batch remaining quantities is invalid';
 	END IF;
     
-    END LOOP;
-    close cur;
         
+    INSERT INTO RecipeSnapshot(
+    	snapshot_id,
+		recipe_num,
+		expected_quantity,
+		counted_quantity
+    ) VALUES(
+		snap_id,
+        recipe_snapshot,
+        running_total,
+        recipe_count
+    );
     
+    COMMIT;
     
 END$$
-
-SHOW ERRORS;
 
 CREATE PROCEDURE completeSnapshot(
 	IN completed_snapshot INT

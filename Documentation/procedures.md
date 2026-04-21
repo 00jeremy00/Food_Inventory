@@ -434,6 +434,28 @@ Creates the Inventory Snapshot recording for one product which includes its expe
 - Verify ProductInventory has a valid quantity and store for expected_quantity
 - Insert snapshot info into InventorySnapshot
 
+---
+## createRecipeSnapshot
+Aggregates the batches of the same recipe type to compare that with the amount of that recipe that is physically counted
+
+### Input Parameters
+1. **snap_id INT**: the snapshot record which this snapshot is referring to 
+2. **recipe_snapshot INT** refers to the recipe being counted
+3. **recipe_count DECIMAL(10,3)** The amount of the recipe physically counted
+
+### Verifies
+- **snap_id** is not NULL and refers to a `PENDING` snapshot record
+- **recipe_snapshot** is not NULL and refers to a non `PENDING` recipe
+- **recipe_count** is not NULL and non-negative
+- the remaining quantity for each active batch with **recipe_snapshot** is not NULL and is positive
+
+### Behavior
+- 
+-  
+
+
+---
+
 ## completeSnapshot
 Completes an inventory snapshot by updating record and verifying that all products with non-zero ProductInventory quantities have snapshots recording inventory.
 
