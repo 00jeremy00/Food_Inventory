@@ -448,9 +448,10 @@ Aggregates the batches of the same recipe type to compare that with the amount o
 - **recipe_snapshot** is not NULL and refers to a non `PENDING` recipe
 - **recipe_count** is not NULL and non-negative
 - the remaining quantity for each active batch with **recipe_snapshot** is not NULL and is positive
-
+- there is not already a snapshot assigned to **snap_id** recording for **recipe_snapshot**
 ### Behavior
-- 
+- Sums the remaining quantities of each batch with recipe type **recipe_snapshot** and records this as the expected recipe level
+- Inserts into RecipeSnapshot the amount physically counted and the expected recipe level along with the recipe and snapshot record information 
 -  
 
 
