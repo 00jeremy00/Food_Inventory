@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS Batch(
     prepared_quantity DECIMAL(10,3) NOT NULL,
     remaining_quantity DECIMAL(10,3) NOT NULL,
     depleted_at DATETIME DEFAULT NULL,
-    expires_at DATETIME NOT NULL,
+    expires_at DATETIME,
     batch_status ENUM('PENDING', 'ACTIVE', 'DEPLETED', 'EXPIRED') DEFAULT 'PENDING' NOT NULL,
     FOREIGN KEY(approved_by) REFERENCES Employee(employee_num),
     FOREIGN KEY (recipe_num) REFERENCES Recipe(recipe_num),

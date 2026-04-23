@@ -458,12 +458,17 @@ Aggregates the batches of the same recipe type to compare that with the amount o
 ---
 
 ## completeSnapshot
-Completes an inventory snapshot by updating record and verifying that all products with non-zero ProductInventory quantities have snapshots recording inventory.
+Completes an inventory snapshot by updating record and verifying that all products with non-zero ProductInventory quantities and all recipes that have active batches with strictly positive quantities have snapshot entries.
 
 ### Input Parameters
 1. completed_snapshot: refers to the snapshot record which needs to be resolved
-### Goals
+### Verifies
 - Verify that snapshot is valid
 - Verify that the snapshot's status is PENDING
-- For each ProductInventory with a nonzero quantity
+- Each ProductInventory's entry with nonzero quantity has a corresponding ProductSnapshot entry
+- Each recipe that has an ACTIVE batch with a nonzero remaining quantity has a corresponding RecipeSnapshot entry
 - Update snapshot_status in InventorySnapshotRecord to COMPLETED
+
+###  Behavior
+- locks SnapshotRecord **completed_snapshot** so it can't be updated more than once
+- updates inventorySnapshotRecord to be completed

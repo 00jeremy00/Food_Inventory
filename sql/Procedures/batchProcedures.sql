@@ -148,7 +148,7 @@ BEGIN
     FROM Recipe
     WHERE recipe_num = new_plan_recipe;
     
-    IF recipe_status <> 'ACTIVE' THEN
+    IF v_status <> 'ACTIVE' THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'createPrepPlan [E03]: recipe must be active to create prep plan';
 	END IF;

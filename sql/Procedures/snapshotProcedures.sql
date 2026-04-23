@@ -191,9 +191,8 @@ BEGIN
 	INTO running_total
 	FROM Batch
 	WHERE batch_status = 'ACTIVE'
-		AND recipe_num = recipe_snapshot
-	FOR UPDATE;
-	
+		AND recipe_num = recipe_snapshot;
+        
     IF running_total < 0 THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'createRecipeSnapshot [E07] summation of batch remaining quantities is invalid';
@@ -224,10 +223,27 @@ BEGIN
     DECLARE inventory_product INT;
     DECLARE snap_status VARCHAR(20);
     DECLARE done INT DEFAULT FALSE;
+    DECLARE batch_recipe INT;
     DECLARE cur CURSOR FOR				-- gets transaction info for transactions of selected invoice
         SELECT product_num
-        FROM ProductInventory
+        FROM ProductSnapshot
         WHERE quantity > 0;
+        
+	DECLARE batch_cur CURSOR FOR
+		SELECT recipe_num
+        FROM Batch
+        WHERE remaining_quantity > 0
+			AND batch_status = 'ACTIVE'
+		GROUP BY recipe_num;
+        
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+		ROLLBACK;
+        RESIGNAL;
+    END; 
+
+        
 
     IF completed_snapshot IS NULL OR completed_snapshot < 0 THEN
 		SIGNAL SQLSTATE '45000'
@@ -244,10 +260,13 @@ BEGIN
         SET MESSAGE_TEXT = 'completeSnapshot [E02]:Snapshot not found';
 	END IF;
     
+    START TRANSACTION;
+    
     SELECT snapshot_status
     INTO snap_status
     FROM InventorySnapshotRecord
-    WHERE snapshot_id = completed_snapshot;
+    WHERE snapshot_id = completed_snapshot
+    FOR UPDATE;
     
     -- verifies snapshot is pending
     IF snap_status <> 'PENDING' THEN
@@ -267,7 +286,7 @@ BEGIN
         
         SELECT COUNT(*)
         INTO v_count
-        FROM InventorySnapshot
+        FROM ProductInventory
         WHERE snapshot_id = completed_snapshot
 			AND product_num = inventory_product;
             
@@ -278,9 +297,36 @@ BEGIN
 	END LOOP;
     CLOSE cur;
     
+    SET done = FALSE;
+    
+    OPEN batch_cur;
+    batch_loop: LOOP
+		FETCH batch_cur
+        INTO batch_recipe;
+	
+    IF DONE THEN 
+		LEAVE batch_loop;
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM RecipeSnapshot
+    WHERE snapshot_id = completed_snapshot
+		AND recipe_num = batch_recipe;
+        
+	IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'completeSnapshot [E05] No Snapshot Counting Recipe that exists in Batch';
+	END IF;
+	END LOOP;
+	CLOSE batch_cur;
+    
+    
     UPDATE InventorySnapshotRecord
 	SET snapshot_status = 'COMPLETED'
     WHERE snapshot_id = completed_snapshot;
+    
+    COMMIT;
     
 END $$
 
