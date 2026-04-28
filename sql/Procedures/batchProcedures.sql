@@ -5,6 +5,7 @@ DROP PROCEDURE IF EXISTS createUnplannedBatch;
 DROP PROCEDURE IF EXISTS executePrepPlan;
 DROP PROCEDURE IF EXISTS activateBatch;
 DROP PROCEDURE IF EXISTS createPrepTransaction;
+DROP PROCEDURE IF EXISTS modifyBatch;
 
 DELIMITER $$
 
@@ -788,7 +789,7 @@ BEGIN
             AND it.transaction_type = 'PREP'
             AND it.approval_status = 'PENDING';
 		
-        IF prep_quantity < needed_quantity OR prep_quantity > needed_quantity + 1 THEN
+        IF prep_quantity < needed_quantity THEN
 			SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'activateBatch [E16] Product allocations do not meet ingredient quantity required';
 		END IF;
@@ -917,6 +918,8 @@ BEGIN
 		transaction_type,
 		transaction_date,
 		created_by,
+        approval_status,
+        approved_by,
         reason
     ) VALUES(
 		active_batch,
@@ -924,9 +927,87 @@ BEGIN
         'CREATE',
         CURRENT_TIMESTAMP,
         batch_creator,
+        'COMPLETED',
+        batch_approver,
         NULL
     );
     COMMIT;
+END$$
+
+CREATE PROCEDURE modifyBatch(
+	IN batch_modified INT,
+    IN amount_modified DECIMAL(10,3),
+    IN modify_type VARCHAR(20),
+    IN modify_reason VARCHAR(64),
+    IN modify_creator VARCHAR(20)
+)
+BEGIN
+	DECLARE v_count INT;
+	DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+		ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    IF batch_modified IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'modifyBatch [E01] batch number is NULL';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Batch
+    WHERE batch_num = batch_modified
+		AND batch_status = 'ACTIVE';
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'modifyBatch [E02] No active batch found';
+	ELSEIF amount_modified IS NULL OR amount_modified <= 0 THEN
+  		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'modifyBatch [E03] amount modified must be strictly positive';  
+	END IF;
+    
+    IF modify_type NOT IN ('WASTE', 'ADJUST') THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'modifyBatch [E04] transaction type must be either WASTE or ADJUST';
+	ELSEIF modify_reason IS NULL OR TRIM(modify_reason) = '' THEN
+			SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'modifyBatch [E05] batch transactions requires a reason';  
+	ELSEIF modify_creator IS NULL OR TRIM(modify_creator) = '' THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'modifyBatch [E06] batch transaction has NULL approver';  
+	END IF;
+        
+	SELECT COUNT(*)
+	INTO v_count
+	FROM Employee
+	WHERE employee_num = modify_creator;
+    
+	IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'consumBatch [E07] batch approver is not a valid employee';  
+	END IF;
+    
+    INSERT INTO BatchTransaction(
+		batch_num,
+		quantity,
+		transaction_type,
+		transaction_date,
+		created_by,
+		reason,
+		approval_status,
+		approved_by
+    ) VALUES (
+		batch_modified,
+		amount_modified,
+        modify_type,
+        CURRENT_TIMESTAMP,
+        modify_creator,
+        modify_reason,
+        'PENDING',
+        NULL
+    );
 END$$
 
 DELIMITER ;

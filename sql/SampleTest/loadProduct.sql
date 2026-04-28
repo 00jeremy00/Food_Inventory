@@ -78,4 +78,4 @@ CALL addProduct("friesskinon",
 CALL addProduct("cheddar5lb6",
 "Mild Cheddar Cheese 5 lb. Loaf - 6/Case",
 "000002", "30lb", "000003", 176.49, 30.0);
-SHOW ERRORS;
+SELECT * FROM Product;

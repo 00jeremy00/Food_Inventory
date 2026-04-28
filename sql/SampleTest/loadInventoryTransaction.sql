@@ -36,6 +36,8 @@ CALL createWasteTransaction(12, 1.0, '56881', 'overcooked during prep'); -- crea
 CALL resolveInventoryTransaction(25, 'APPROVED', '56881'); -- approve bacon waste
 SHOW ERRORS;
 
+SELECT * FROM ProductInventory;
+
 -- ---------------------------------
 -- Tomatoes (product 7)
 -- ---------------------------------

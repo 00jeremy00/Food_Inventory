@@ -143,9 +143,13 @@ CREATE TABLE IF NOT EXISTS Batch(
     transaction_date DATETIME DEFAULT NULL,
     created_by VARCHAR(20) NOT NULL,
     reason VARCHAR(64) DEFAULT NULL,
+    approval_status ENUM('APPROVED', 'PENDING', 'DENIED') NOT NULL,
+    approved_by VARCHAR(20),
+    FOREIGN KEY (approved_by) REFERENCES Employee(employee_num),
     FOREIGN KEY (batch_num) REFERENCES Batch(batch_num),
     FOREIGN KEY (created_by) REFERENCES Employee(employee_num),
-    CONSTRAINT batch_quantity_positive CHECK (quantity > 0)
+    CONSTRAINT batch_quantity_positive CHECK (quantity > 0),
+    CONSTRAINT check_batch_approval CHECK (approval_status IN ('APPROVED', 'PENDING', 'DENIED'))
 );
 
 CREATE TABLE IF NOT EXISTS InventoryTransaction(

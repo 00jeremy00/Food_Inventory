@@ -5,6 +5,7 @@
 CALL addInvoice("8945341", "2025-12-12", "000001"); -- create Webstaurant invoice
 SHOW ERRORS;
 CALL addInvoiceLine(1, 1, 5, '56882', 20.0);   -- Mayonnaise: 5 cases (4 gal each → 20 gal total)
+SHOW ERRORS;
 CALL addInvoiceLine(1, 9, 2, '56881', 22.10);  -- Paper Towels: 2 cases (30 rolls each → 60 rolls)
 CALL addInvoiceLine(1, 11, 1, '56882', 35.0);  -- Mozzarella: 1 case (36 lb total)
 CALL addInvoiceLine(1, 14, 3, '56881', 9.99);  -- Hash Browns: 3 cases (18 lb each → 54 lb)
@@ -13,7 +14,7 @@ CALL resolveInvoice(1, 'APPROVED', '56881');
 
 
 -- ===============================
--- Invoice 2 (Sysco) [LEFT PENDING]
+-- Invoice 2 (Sysco) 
 -- ===============================
 
 CALL addInvoice("89453412", "2025-12-19", "000002"); -- create Sysco invoice
@@ -24,9 +25,9 @@ CALL addInvoiceLine(2, 19, 20, '56881', 1659.80); -- Fries: 20 cases (30 lb each
 CALL addInvoiceLine(2, 6, 2, '56882', 72.98);   -- Lettuce: 2 cases (24 heads each → 48 heads)
 CALL addInvoiceLine(2, 16, 1, '56881', 23.99);  -- Mustard: 1 case (4 gal)
 CALL addInvoiceLine(2, 13, 5, '56882', 344.95); -- Nuggets: 5 cases (20 lb each → 100 lb)
+CALL resolveInvoice(2, 'APPROVED', '56881');
 
--- NOTE: This invoice is intentionally NOT approved yet
--- used to test pending invoice behavior
+
 
 
 -- ===============================
@@ -62,3 +63,4 @@ SELECT * FROM ProductInventory;
 SELECT * FROM Invoice;
 SELECT * FROM Vendor;
 SELECT * FROM Product;
+SELECT * FROM InvoiceLine;

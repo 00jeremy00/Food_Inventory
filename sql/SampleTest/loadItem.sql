@@ -19,3 +19,5 @@ CALL addItem ("000017", "Bacon", "REFRIGERATED", "lb");
 CALL addItem ("000018", "Frozen Chicken Nuggets", "FROZEN", "lb");
 CALL addItem ("000019", "Hash Browns", "FROZEN", "lb");
 CALL addItem ("000020", "BBQ Sauce", "DRY FOOD", "gal");
+
+SELECT * FROM Item;

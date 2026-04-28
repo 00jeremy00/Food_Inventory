@@ -9,7 +9,9 @@ INSERT INTO Category VALUES
 
 INSERT INTO Shift VALUES
 ("First Shift", "06:00:00", "14:00:00"),
-("Second Shift", "14:00:00", "22:00:00");
+("Second Shift", "14:00:00", "22:00:00"),
+("FULL", "00:00:00", "23:59:59");
+
 
 CALL addVendor("000001", "Webstaraunt", "717-657-8931", "support@webstaraunt.com",
 "https://www.webstaurant.com");
