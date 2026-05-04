@@ -8,6 +8,7 @@ DROP PROCEDURE IF EXISTS createPrepTransaction;
 DROP PROCEDURE IF EXISTS modifyBatch;
 DROP PROCEDURE IF EXISTS useBatch;
 DROP PROCEDURE IF EXISTS resolveBatchModify;
+DROP PROCEDURE IF EXISTS useRecipe;
 
 DELIMITER $$
 
@@ -1011,6 +1012,7 @@ BEGIN
     );
 END$$
 
+
 CREATE PROCEDURE resolveBatchModify(
 	IN trans_num INT,
     IN modify_approver VARCHAR(20),
@@ -1269,4 +1271,120 @@ BEGIN
     );
     COMMIT;
 END$$
+
+CREATE PROCEDURE useRecipe(
+	IN use_recipe INT,
+    IN use_quantity DECIMAL(10,3),
+    IN use_creator VARCHAR(20)
+)
+BEGIN 
+	DECLARE v_count INT;
+    DECLARE recipe_batch INT;
+    DECLARE batch_quantity DECIMAL(10,3);
+    DECLARE use_remaining DECIMAL(10,3);
+    DECLARE batch_use DECIMAL(10,3);
+    DECLARE done INT DEFAULT FALSE;
+
+	DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+		ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    IF use_recipe IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'useRecipe [E01] recipe is NULL';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Recipe
+    WHERE recipe_num = use_recipe
+		AND recipe_status <> 'PENDING';
+	
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'useRecipe [E02] non PENDING recipe not found';
+	ELSEIF use_quantity IS NULL OR use_quantity <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'useRecipe [E03] quantity must be strictly positive';
+	ELSEIF use_creator IS NULL OR TRIM(use_creator) = '' THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'useRecipe [E04] transaction creator must be non-NULL';
+	END IF;
+    
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Employee
+    WHERE employee_num = use_creator;
+    
+    IF v_count = 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'useRecipe [E05] employee not found';
+	END IF;
+    
+    SET use_remaining = use_quantity;
+	START TRANSACTION;
+    WHILE use_remaining > 0 DO
+		SELECT batch_num,
+			remaining_quantity
+		INTO recipe_batch,
+			batch_quantity
+		FROM Batch
+        WHERE recipe_num = use_recipe
+			AND batch_status = 'ACTIVE'
+            AND remaining_quantity > 0
+        ORDER BY created_on ASC
+        LIMIT 1
+        FOR UPDATE;
+        
+        IF recipe_batch IS NULL THEN
+			SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'useRecipe [E06] use exceeds on-hand recipe level';
+		END IF;
+        
+        IF use_remaining >= batch_quantity  THEN
+			SET batch_use = batch_quantity;
+            
+            UPDATE Batch
+            SET remaining_quantity = 0,
+				batch_status = 'DEPLETED',
+				depleted_at = CURRENT_TIMESTAMP
+            WHERE batch_num = recipe_batch
+				AND batch_status = 'ACTIVE';
+		ELSE 
+			SET batch_use = use_remaining;
+			
+            UPDATE Batch
+            SET remaining_quantity = batch_quantity - batch_use
+            WHERE batch_num = recipe_batch
+				AND batch_status = 'ACTIVE';
+        END IF;
+        
+		SET use_remaining = use_remaining - batch_use;
+        
+		INSERT INTO BatchTransaction (
+			batch_num,
+			quantity,
+			transaction_type,
+			transaction_date,
+			created_by,
+			reason,
+			approval_status,
+			approved_by
+		) VALUES(
+			recipe_batch,
+			batch_use,
+			'USE',
+			CURRENT_TIMESTAMP,
+			use_creator,
+			NULL,
+			'APPROVED',
+			NULL
+		);
+    
+	END WHILE;
+    COMMIT;
+END$$
+
 DELIMITER ;

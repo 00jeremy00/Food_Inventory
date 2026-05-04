@@ -16,6 +16,10 @@ SHOW ERRORS;
 -- CALL useBatch(1, 20, "56881");
 SHOW ERRORS;
 
+SELECT * FROM Recipe;
+
+CALL useRecipe(1,2, '56881');
+SHOW ERRORS;
 SELECT * FROM Batch
 	WHERE batch_num = 3;
 
