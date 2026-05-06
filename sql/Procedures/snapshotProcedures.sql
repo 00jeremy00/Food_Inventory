@@ -1,10 +1,10 @@
-DROP PROCEDURE IF EXISTS createInventorySnapshotRecord;
+DROP PROCEDURE IF EXISTS createSnapshotRecord;
 DROP PROCEDURE IF EXISTS createProductSnapshot;
 DROP PROCEDURE IF EXISTS completeSnapshot;
 DROP PROCEDURE IF EXISTS createRecipeSnapshot;
 DELIMITER $$
 
-CREATE PROCEDURE createInventorySnapshotRecord(
+CREATE PROCEDURE createSnapshotRecord(
 	IN recorder VARCHAR(20)
 )
 BEGIN
@@ -13,31 +13,31 @@ BEGIN
     -- verifies snapshot recorder has valid employee num
     IF recorder IS NULL OR TRIM(recorder) = '' THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT ='invalid employee number for snapshot record' ;
+        SET MESSAGE_TEXT ='createSnapshotRecord [E01] invalid employee number for snapshot record' ;
     END IF;
 
     SELECT COUNT(*)
     INTO v_count
     FROM Employee
     WHERE employee_num = recorder
-    AND is_manager = TRUE;
+		AND is_manager = TRUE;
 
     -- Verifies recorder credentials match a manager in Employees
     IF v_count = 0 THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'No manager found matching recorder number' ;
+        SET MESSAGE_TEXT = 'createSnapshotRecord [E02] No manager found matching recorder number' ;
     END IF;
 
-    INSERT INTO InventorySnapshotRecord(
-        snapshot_time,
-        previous_snapshot,
-        snapshot_status,
-        recorded_by
+    INSERT INTO SnapshotRecord(
+		snapshot_time,
+		snapshot_status,
+		recorded_by,
+		notes
 ) VALUES (
         CURRENT_TIMESTAMP,
-        last_snapshot,
         'PENDING',
-        recorder
+        recorder,
+        NULL
 );
 END$$
 
@@ -55,33 +55,26 @@ BEGIN
 	-- verifies none of inputs are NULL and counted_quantity is not negative
     IF inventory_snapshot IS NULL THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Inventory Snapshot Record required for Inventory Snapshot' ;
+        SET MESSAGE_TEXT = 'createProductSnapshot [E01] Snapshot Record required for Inventory Snapshot' ;
 	ELSEIF inventory_product IS NULL THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Product Number required for Inventory Snapshot' ;    
-	ELSEIF counted_total IS NULL OR  counted_quantity < 0 THEN
+        SET MESSAGE_TEXT = 'createProductSnapshot [E02] Product Number required for Inventory Snapshot' ;    
+	ELSEIF counted_total IS NULL OR  counted_total < 0 THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Counted quantity is invalid' ;
+        SET MESSAGE_TEXT = 'createProductSnapshot [E03] Counted quantity is invalid' ;
     END IF;
     
     SELECT COUNT(*)
     INTO v_count
-    FROM InventorySnapshotRecord
+    FROM SnapshotRecord
     WHERE snapshot_id = inventory_snapshot
 		AND snapshot_status = 'PENDING';
 
 	-- verififes that the snapshot record exists
 	IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'No PENDING snapshot id found';
+        SET MESSAGE_TEXT = 'createProductSnapshot [E04] No PENDING snapshot id found';
 	END IF;
-    
-    -- Makes sure that product entry for snapshotInventory is a valid product
-    IF v_count = 0 THEN
-		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Snapshot product not found in Products';
-	END IF;
-    
     
     -- ensures product inventory exists and is valid
     SELECT COUNT(*) 
@@ -91,7 +84,7 @@ BEGIN
     
     IF v_count = 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'No product inventory found';
+        SET MESSAGE_TEXT = 'createProductSnapshot [E05] No product inventory found';
 	END IF;
     
     SELECT quantity 
@@ -101,7 +94,7 @@ BEGIN
     
     IF expected_total IS NULL OR expected_total < 0 THEN
 		SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Product inventory invalid';
+        SET MESSAGE_TEXT = 'createProductSnapshot [E06] Product inventory invalid';
 	END IF;
     
     INSERT INTO ProductSnapshot(
@@ -147,7 +140,7 @@ BEGIN
     
     SELECT COUNT(*)
     INTO v_count
-    FROM InventorySnapshotRecord
+    FROM SnapshotRecord
     WHERE snapshot_id = snap_id
 		AND snapshot_status = 'PENDING';
         
@@ -226,7 +219,7 @@ BEGIN
     DECLARE batch_recipe INT;
     DECLARE cur CURSOR FOR				-- gets transaction info for transactions of selected invoice
         SELECT product_num
-        FROM ProductSnapshot
+        FROM ProductInventory
         WHERE quantity > 0;
         
 	DECLARE batch_cur CURSOR FOR
@@ -245,14 +238,14 @@ BEGIN
 
         
 
-    IF completed_snapshot IS NULL OR completed_snapshot < 0 THEN
+    IF completed_snapshot IS NULL THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'completeSnapshot [E01]: Invalid snapshot number';
 	END IF;
     
     SELECT COUNT(*)
     INTO v_count
-    FROM InventorySnapshotRecord
+    FROM SnapshotRecord
     WHERE snapshot_id = completed_snapshot;
     
     IF v_count = 0 THEN
@@ -264,7 +257,7 @@ BEGIN
     
     SELECT snapshot_status
     INTO snap_status
-    FROM InventorySnapshotRecord
+    FROM SnapshotRecord
     WHERE snapshot_id = completed_snapshot
     FOR UPDATE;
     
@@ -286,7 +279,7 @@ BEGIN
         
         SELECT COUNT(*)
         INTO v_count
-        FROM ProductInventory
+        FROM ProductSnapshot
         WHERE snapshot_id = completed_snapshot
 			AND product_num = inventory_product;
             
@@ -322,7 +315,7 @@ BEGIN
 	CLOSE batch_cur;
     
     
-    UPDATE InventorySnapshotRecord
+    UPDATE SnapshotRecord
 	SET snapshot_status = 'COMPLETED'
     WHERE snapshot_id = completed_snapshot;
     

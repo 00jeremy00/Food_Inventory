@@ -1,7 +1,7 @@
 USE FOOD;
 SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS InventorySnapshotRecord;
-DROP TABLE IF EXISTS InventorySnapshot;
+DROP TABLE IF EXISTS SnapshotRecord;
+DROP TABLE IF EXISTS ProductSnapshot;
 DROP TABLE IF EXISTS RecipeSnapshot;
 DROP TABLE IF EXISTS InventoryTransaction;
 DROP TABLE IF EXISTS Shift;

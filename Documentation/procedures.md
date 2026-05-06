@@ -2,7 +2,130 @@
 
 These proceudres are the primary way that the database should be interacted with. They all enforce buiness rules and enure data integrity.
 
-# Procedures
+# Core Procedures
+
+
+## addItem
+Adds an internal item into the Item table.
+
+### Input Parameters
+1. new_id: internal_num for the new item
+2. new_name: name of the inserted item
+3. new_category: the category that the item is
+4. new_unit: internal_unit which the item is counted in(this is also the unit for Inventory and InventoryTransaction)
+
+### Goals
+- Verify that new_id is valid and that another item does not already use that value
+- Verify that name is supplied
+- Verify that you the category is valid and in Category table
+- Verify that the new_unit is not NULL or empty
+- Insert into Item
+
+---
+
+## addProduct
+Inserts new product into the product table.
+
+### Input Parameters
+1. new_product: product number given from vendor
+2. new_name: name of product from vendor
+3. new_internal_num: internal item associated with the product
+4. new_unit: unit in which the product is orderd
+5. new_vendor: vendor who supplies the product
+6. new_price: price to order one product in the order units
+7. new_factor: conversion factor that converts product units to internal units
+    given units in order unit(located in product) multiply with factor to get internal unit
+
+### Goals
+- Verify that vendor is valid
+- Verify that product_num is a valid string
+- Verify that there is no duplicate product number from the same vendor
+- Verify that new internal number is valid
+- Verify that product name is a valid string
+- Verify that unit is a valid string
+- Verify new_factor is not NULL and strictly positive
+- Veirfy that new_price is strictly positve and not NULL
+- Inesrt into Product
+
+---
+
+## addVendor
+Inserts vendor into vendor table.
+
+### Input Parameters
+1. new_vendor_num: identifier of new vendor
+2. new_name: name for new vendor
+3. new_phone_number: phone number for new vendor
+4. new_email: email for new vendor
+5. new_webite: URL for new vendor
+
+### Goals
+- Verify that new_vendor_num is a non-empty, non-NULL string that is not taken
+- Verify that new_name is a valid string
+- Insert into new vendor into Vendor table
+
+---
+
+## addEmployee
+Inserts employee into employee  table
+
+### Input Parameters
+1. new_employee_num: employee num of new employee
+2. new_name: name of new employee
+3. manager_status: Boolean variable, TRUE if manager, otherwise FALSE
+
+### Goals
+- Verify new_employee_num is a valid string and is not taken by another employee
+- Verify that new_name is a valid string
+- Verify manager_status is not NULL
+- Insert new employee into Employee table
+
+---
+
+# Invoice Procedures
+
+
+## addInvoice
+Inserts an invoice into the Invoice table
+
+### Input Parameters
+1. new_invoice: invoice number
+2. new_date: date the invoice came in
+3. new_vendor: vendor who sent the invoice
+
+### Goals
+- Verifies new_vendor represents a valid vendor
+- Verifies new_invoice is a valid string and that there is no invoice from new_vendor with the same invoice number
+- Verify that new_date is valid
+- Insert new invoice into Invoice table
+
+---
+
+## addInvoiceLine
+Adds record in InvoiceLine table which describes products that are received from an vendor associated by an invoice.
+
+### Input Parameters
+1. new_invoice: invoice id for line item
+2. new_product_num: product number of the product being received
+3. new_quantity: amount of product being received in order units
+4. new_line_price: total price for new_quantity number of products
+5. creator: employee number of a manager who is entering the invoice
+
+### Goals
+- Ensure invoice_id is valid
+- Ensure that the associated invoice has not already been APPROVED or DENIED
+- Validate manager creator credentials
+- Validate that product_num is associated with a valid product
+- Verify that quantity incoming is strictly positive
+- Verify that the vendor associated with the invoice sells the product
+- Select necceary information from product to convert new_quantity to internal units
+- Convert total price to price per internal unit
+- Start transaction before inserts so either both occur or neither
+- Perform insertion into InvoiceLine with price and quantity in terms of initial input
+- Insert into InventoryTransaction with price and quantity in terms of internal units
+
+---
+
 
 ## resolveInvoice
 Finalizes a pending invoice by changing its status to APPROVED or DENIED and passes that finalization down to the corresponding InventoryTransactions related to the invoice, and if the invoice is being approved, updates inventory levels. Given that the invoice is approved, it will also update price in product to keep prices current.
@@ -24,6 +147,8 @@ Finalizes a pending invoice by changing its status to APPROVED or DENIED and pas
 - Update invoice status
 
 ---
+
+# Inventory Transaction Procedures
 
 ## resolveInventoryTransaction
 Finalizes inventory transaction and update Inventory levels associated with that item given the statuss is being updated to APPROVED. Note that all RECEIVE transactions must be processed by resolving the invoice.
@@ -108,124 +233,9 @@ Creates an inventory transaction of WASTE type, recording product number, quanti
 
 ---
 
-## addItem
-Adds an internal item into the Item table.
 
-### Input Parameters
-1. new_id: internal_num for the new item
-2. new_name: name of the inserted item
-3. new_category: the category that the item is
-4. new_unit: internal_unit which the item is counted in(this is also the unit for Inventory and InventoryTransaction)
 
-### Goals
-- Verify that new_id is valid and that another item does not already use that value
-- Verify that name is supplied
-- Verify that you the category is valid and in Category table
-- Verify that the new_unit is not NULL or empty
-- Insert into Item
-
----
-
-## addProduct
-Inserts new product into the product table.
-
-### Input Parameters
-1. new_product: product number given from vendor
-2. new_name: name of product from vendor
-3. new_internal_num: internal item associated with the product
-4. new_unit: unit in which the product is orderd
-5. new_vendor: vendor who supplies the product
-6. new_price: price to order one product in the order units
-7. new_factor: conversion factor that converts product units to internal units
-    given units in order unit(located in product) multiply with factor to get internal unit
-
-### Goals
-- Verify that vendor is valid
-- Verify that product_num is a valid string
-- Verify that there is no duplicate product number from the same vendor
-- Verify that new internal number is valid
-- Verify that product name is a valid string
-- Verify that unit is a valid string
-- Verify new_factor is not NULL and strictly positive
-- Veirfy that new_price is strictly positve and not NULL
-- Inesrt into Product
-
----
-
-## addVnedor
-Inserts vendor into vendor table.
-
-### Input Parameters
-1. new_vendor_num: identifier of new vendor
-2. new_name: name for new vendor
-3. new_phone_number: phone number for new vendor
-4. new_email: email for new vendor
-5. new_webite: URL for new vendor
-
-### Goals
-- Verify that new_vendor_num is a non-empty, non-NULL string that is not taken
-- Verify that new_name is a valid string
-- Insert into new vendor into Vendor table
-
----
-
-## addEmployee
-Inserts employee into employee  table
-
-### Input Parameters
-1. new_employee_num: employee num of new employee
-2. new_name: name of new employee
-3. manager_status: Boolean variable, TRUE if manager, otherwise FALSE
-
-### Goals
-- Verify new_employee_num is a valid string and is not taken by another employee
-- Verify that new_name is a valid string
-- Verify manager_status is not NULL
-- Insert new employee into Employee table
-
----
-
-## addInvoice
-Inserts an invoice into the Invoice table
-
-### Input Parameters
-1. new_invoice: invoice number
-2. new_date: date the invoice came in
-3. new_vendor: vendor who sent the invoice
-
-### Goals
-- Verifies new_vendor represents a valid vendor
-- Verifies new_invoice is a valid string and that there is no invoice from new_vendor with the same invoice number
-- Verify that new_date is valid
-- Insert new invoice into Invoice table
-
----
-
-## addInvoiceLine
-Adds record in InvoiceLine table which describes products that are received from an vendor associated by an invoice.
-
-### Input Parameters
-1. new_invoice: invoice id for line item
-2. new_product_num: product number of the product being received
-3. new_quantity: amount of product being received in order units
-4. new_line_price: total price for new_quantity number of products
-5. creator: employee number of a manager who is entering the invoice
-
-### Goals
-- Ensure invoice_id is valid
-- Ensure that the associated invoice has not already been APPROVED or DENIED
-- Validate manager creator credentials
-- Validate that product_num is associated with a valid product
-- Verify that quantity incoming is strictly positive
-- Verify that the vendor associated with the invoice sells the product
-- Select necceary information from product to convert new_quantity to internal units
-- Convert total price to price per internal unit
-- Start transaction before inserts so either both occur or neither
-- Perform insertion into InvoiceLine with price and quantity in terms of initial input
-- Insert into InventoryTransaction with price and quantity in terms of internal units
-
----
-
+# Recipe Procedures
 ## addRecipe
 Creates a recipe which ingredients can reference.
 
@@ -327,16 +337,8 @@ Takes the number corresponding to a prep plan and converts the plan into a batch
 ---
 
 
-## createInventorySnapshotRecord
-Creates an inventory snapsshot record which will have snapshots which count the products for that record refering to it.
 
-### Input Parameters
-1. recorder: employee number of who is creating the snapshot and counting the inventory, must be a manager
-### Goals
-- Verifies recorder is a valid manager
-- Insert into InventorySnapshotRecord with the CURRENT_TIMESTAMP and PENDING status
 
----
 
 ## createPrepTransaction
 Describes a product being used as a PREP transaction to create a batch.
@@ -419,6 +421,106 @@ Activates the batch so that it can be used — represents the actual creation of
 - rolls back the transaction on failure
 
 
+## modifyBatch
+Creates WASTE or ADJUST transactions that will affect a given batch
+
+### Input Parameters
+1. **batch_modified INT**: the batch which the transaction affects
+2. **amount_modified DECIMAL(10,3)**: the amount of the batch which s being changed
+3. **modify_type (VARCHAR(20))**: either `WASTE` or `ADJUST`
+4. **modify_reason (VARCHAR(64))**: the reason the transaciton is being created
+5. **modify_creator (VARCHAR(20))**: the employee who is creating the transaciton
+
+### Verifies
+- **batch_modified** is not NULL and referes to an active batch
+- **modify_type** is either `WASTE` or `ADJUST`
+- **amount_modified** is non-zero and if making a waste transaction, not negative as well
+- **modify_reason** is not NULL or an empty string
+- **modify_creator** is not NULL and refers to an employee num
+
+### Behavior 
+- Inserts a pending Batch Transaction into the BatchTransaction table if the procedure was given valid information
+
+## resolveBatchModify
+Used to approve or deny a batch modificiation which is in the form of a BatchTransaction of type `WASTE` or `ADJUST`
+
+### Parameters
+1. **trans_num INT**: the transaction number which is being resolved
+2. **modify_approver VARCHAR(20)**: the employee resolving the transaction
+3. **trans_resolution VARCHAR(20)**: the resolution choice, either `APPROVED` or `DENIED`
+
+### Verifies
+- **trans_num** is not NULL and referes to a transaction in BatchTransaction
+- **trans_num** has a `PENDING` status
+- **trans_num** has a non-NULL reason
+- **trans_num** is of type `WASTE` or `ADJUST`
+- **trans_num** has a creator that is a valid employee
+- **trans_num** has a batch which is either `ACTIVE` or `DEPLETED`
+- **trans_num** has a valid datetime which is before the current time
+- **modify_approver** is not NULL and a valid manager
+- **trans_resolution** is either `APPROVED` or `DENIED`
+- the changing of the quantity of the batch does not result in a negative remaining_quantity
+
+### Behavior
+- Lock corresponding BatchTransaction to ensure it is not resolved more than once
+- Verify all parameter and information in the transaction being resolved
+- Lock the corresponding batch so that it may not be altered until the transaction affects it
+- Perform the neccesary calculation to the final remaining_quantity and update the batch's remaining quantity and status accordingly
+- Set the BatchTransaction to `APPROVED`
+
+## useBatch
+Creates a `USE` transactions which is approved and consumes the remaining quantity of that batch. 
+
+### Input Parameters
+1. **batch_used INT**: The batch which is being used
+2. **quantity_used DECIMAL(10,3)**: The quantity of the recipe being used, measured in the units corresponding to the recipe of the batch
+3. **use_creator VARCHAR(20)**: Employee number of who is creating the transaction 
+
+### Verifies
+- **batch_used** is not NULL and refers to an active batch
+- **quantity_used** is not NULL and strictly positive
+- **use_creator** is not NULL and refers to an employee
+- the remaining_quantity in the batch is not NULL and strictly positive
+- the deduction of **quantity_used** from the remaining quantity doesn't result in negative number 
+
+### Behavior
+- starts transaction to lock **batch_used**
+- update Batch remaining_quantity to the updated value and the batch_status to DEPLETED if the new remaining_quantity is 0
+- inserts an approved  USE transaction into BatchTransaction 
+
+
+## useRecipe
+Given a recipe, creates use transaction for the oldest batches until the full use quantity has been allocated 
+
+### Input Parameters
+1.  **use_recipe INT**: Recipe being used
+2. **use_quantity DECIMAL(10,3)**: The quantity of the recipe being used
+3. **use_creator VARCHAR(20)**: The employee creating the transactions 
+
+### Verifies 
+- **use_recipe** is not NULL and refers to a non `PENDING` recipe 
+- **use_quantity** is not NULL and strictly positive 
+- **use_creator** is not NULL and refers to an employee
+- there are enough remaining_quantity among the active batches to account for the **use_quantity**
+
+### Behavior
+- start transaction and lock each batch which is being consumed in useRecipe
+- start with the oldest batch which has a recipe_num fitting **use_recipe** and take away all its **use_quantity** or decrements **use_quantity** by its remaining quantity if **use_quantity** exceeds on-hand values and depletes the batch and moves on to the next oldest batch
+- Inserts approved use transaction into BatchTransaction for each batch that some is used from
+
+# Snapshot Procedures
+
+## createInventorySnapshotRecord
+Creates an inventory snapsshot record which will have snapshots which count the products for that record refering to it.
+
+### Input Parameters
+1. recorder: employee number of who is creating the snapshot and counting the inventory, must be a manager
+### Goals
+- Verifies recorder is a valid manager
+- Insert into InventorySnapshotRecord with the CURRENT_TIMESTAMP and PENDING status
+
+---
+
 ## createInventorySnapshot
 Creates the Inventory Snapshot recording for one product which includes its expected amount and the amount physically counted
 
@@ -435,6 +537,7 @@ Creates the Inventory Snapshot recording for one product which includes its expe
 - Insert snapshot info into InventorySnapshot
 
 ---
+
 ## createRecipeSnapshot
 Aggregates the batches of the same recipe type to compare that with the amount of that recipe that is physically counted
 

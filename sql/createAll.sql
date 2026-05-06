@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS InventoryTransaction(
     CONSTRAINT trans_price_positive CHECK (price_per_unit > 0 OR price_per_unit IS NULL)
 );
 
-CREATE TABLE IF NOT EXISTS InventorySnapshotRecord(
+CREATE TABLE IF NOT EXISTS SnapshotRecord(
 	snapshot_id INT AUTO_INCREMENT PRIMARY KEY,
 	snapshot_time DATETIME NOT NULL,
     snapshot_status ENUM('PENDING', 'COMPLETED') DEFAULT 'PENDING' NOT NULL,
@@ -192,7 +192,7 @@ CREATE TABLE IF NOT EXISTS RecipeSnapshot(
     expected_quantity DECIMAL(10,3) NOT NULL,
     counted_quantity DECIMAL(10,3) NOT NULL,
     PRIMARY KEY(snapshot_id, recipe_num),
-    FOREIGN KEY(snapshot_id) REFERENCES InventorySnapshotRecord(snapshot_id),
+    FOREIGN KEY(snapshot_id) REFERENCES SnapshotRecord(snapshot_id),
     FOREIGN KEY(recipe_num) REFERENCES Recipe(recipe_num),
     CONSTRAINT recipe_expected_positive CHECK (expected_quantity >= 0),
 	CONSTRAINT recipe_counted_positive CHECK (counted_quantity >= 0)
@@ -205,9 +205,9 @@ CREATE TABLE IF NOT EXISTS ProductSnapshot(
     counted_quantity DECIMAL(10,3) NOT NULL,
     PRIMARY KEY(snapshot_id, product_num),
     FOREIGN KEY(product_num) REFERENCES Product(product_num),
-    FOREIGN KEY(snapshot_id) REFERENCES InventorySnapshotRecord(snapshot_id),
+    FOREIGN KEY(snapshot_id) REFERENCES SnapshotRecord(snapshot_id),
     CONSTRAINT expected_product_positive CHECK (expected_quantity >= 0),
     CONSTRAINT counted_product_positive CHECK (counted_quantity >= 0)
 );
-
+SHOW ERRORS;
 SHOW TABLES;

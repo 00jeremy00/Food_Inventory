@@ -1161,7 +1161,8 @@ BEGIN
 			AND batch_status IN ('ACTIVE', 'DEPLETED');
 	ELSEIF batch_quantity > 0 THEN
 		UPDATE Batch
-        SET remaining_quantity = batch_quantity
+        SET remaining_quantity = batch_quantity,
+			batch_status = 'ACTIVE'
 		WHERE batch_num = trans_batch
 			AND batch_status IN ('ACTIVE', 'DEPLETED');
 	END IF;
