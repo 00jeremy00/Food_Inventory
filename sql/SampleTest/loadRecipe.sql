@@ -36,3 +36,5 @@ JOIN Product as p
 ON p.internal_num = i.internal_num
 	WHERE recipe_num = 2;
 SELECT * FROM Item;
+
+SELECT * FROM Recipe;
