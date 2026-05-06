@@ -42,7 +42,7 @@ CALL createProductSnapshot(@snapshot_id, 18, 15000.000);  -- exact match
 CALL createProductSnapshot(@snapshot_id, 19, 493.500);    -- shortage: expected 495
 CALL createProductSnapshot(@snapshot_id, 20, 100.000);    -- exact match
 
-
+select * FROM RecipeSnapshot;
 -- ===============================
 -- Recipe Snapshots
 -- ===============================
@@ -64,12 +64,13 @@ CALL createRecipeSnapshot(@snapshot_id, 3, 22.000);   -- overcount: expected 21
 CALL completeSnapshot(@snapshot_id);
 
 
+
 -- ===============================
 -- Validation Queries
 -- ===============================
 
 SELECT *
-FROM InventorySnapshotRecord
+FROM SnapshotRecord
 WHERE snapshot_id = @snapshot_id;
 
 SELECT *

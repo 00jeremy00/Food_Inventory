@@ -39,3 +39,7 @@ CALL createPrepTransaction(3, 15, 0.2);
 CALL activateBatch(3, '56881');
 
 SELECT * FROM Batch;
+SELECT * FROM BatchTransaction;
+SELECT * FROM InventoryTransaction
+	WHERE transaction_type = 'PREP';
+
