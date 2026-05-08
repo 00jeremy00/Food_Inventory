@@ -17,6 +17,7 @@ GROUP BY
     i.category,
     i.internal_unit;
 
+SELECT * FROM ItemInventoryData;
 CREATE OR REPLACE VIEW ActiveBatchSummary AS
 SELECT
 	b.batch_num,
