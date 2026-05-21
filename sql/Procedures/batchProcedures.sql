@@ -930,7 +930,7 @@ BEGIN
         'CREATE',
         CURRENT_TIMESTAMP,
         batch_creator,
-        'COMPLETED',
+        'APPROVED',
         batch_approver,
         NULL
     );

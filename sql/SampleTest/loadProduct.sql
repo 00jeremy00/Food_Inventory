@@ -80,16 +80,3 @@ CALL addProduct("cheddar5lb6",
 "000002", "30lb", "000003", 176.49, 30.0);
 SELECT * FROM Product;
 
-SELECT
-    p.product_num,
-    p.vendor_pname,
-    i.internal_name,
-    v.vendor_name,
-    pi.quantity
-FROM Product p
-JOIN Item i
-    ON p.internal_num = i.internal_num
-JOIN Vendor v
-    ON p.vendor_num = v.vendor_num
-JOIN ProductInventory pi
-    ON p.product_num = pi.product_num;

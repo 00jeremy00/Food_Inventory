@@ -4,13 +4,12 @@ SELECT
     i.internal_name,
     i.category,
     i.internal_unit,
-    SUM(pi.quantity) AS total_quantity,
-    SUM(pi.quantity * (p.price / p.conversion_factor)) AS total_value
-FROM ProductInventory pi
-JOIN Product p
-    ON pi.product_num = p.product_num
-JOIN Item i
+    CAST(COALESCE(SUM(pi.quantity), 0) AS DECIMAL(10,3)) AS total_quantity,
+	CAST(COALESCE(SUM(pi.quantity * (p.price / p.conversion_factor)), 0) AS DECIMAL(10,2)) AS total_value
+FROM Product p JOIN Item i
     ON p.internal_num = i.internal_num
+LEFT JOIN ProductInventory pi 
+    ON pi.product_num = p.product_num
 GROUP BY
     i.internal_num,
     i.internal_name,
