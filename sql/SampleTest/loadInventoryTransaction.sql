@@ -85,7 +85,7 @@ SHOW ERRORS;
 -- ---------------------------------
 -- Optional test queries
 -- ---------------------------------
-
+SELECT * FROM InventoryTransaction;
 SELECT *
 FROM InventoryTransaction
 WHERE transaction_type <> 'RECEIVE'
