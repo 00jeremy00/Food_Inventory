@@ -211,3 +211,20 @@ CREATE TABLE IF NOT EXISTS ProductSnapshot(
 );
 SHOW ERRORS;
 SHOW TABLES;
+SELECT
+                b.transaction_num,
+                b.batch_num,
+                b.quantity,
+                b.transaction_type,
+                b.transaction_date,
+                b.created_by,
+                e.employee_name AS creator_name,
+                b.created_by,
+                b.approved_by,
+                e2.employee_name AS approver_name
+                b.approval_status,
+				b.reason
+            FROM BatchTransaction AS b
+            LEFT JOIN Employee AS e ON b.created_by = e.employee_num
+            LEFT JOIN Employee AS e2 ON b.approved_by = e2.employee_num
+            ORDER BY b.transaction_num;

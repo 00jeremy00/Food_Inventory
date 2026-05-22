@@ -50,4 +50,3 @@ SELECT
  JOIN Product as p
 	ON p.product_num = it.product_num
 	WHERE transaction_type = 'PREP';
-
