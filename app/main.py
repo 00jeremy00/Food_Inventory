@@ -7,7 +7,9 @@ from app.routers import (
     batches, 
     recipes, 
     inventory_transactions, 
-    batch_transactions)
+    batch_transactions,
+    invoice_lines
+    )
 app = FastAPI(
     title="Restaurant Inventory API"
 )
@@ -20,6 +22,7 @@ app.include_router(batches.router)
 app.include_router(recipes.router)
 app.include_router(inventory_transactions.router)
 app.include_router(invoices.router)
+app.include_router(invoice_lines.router)
 
 @app.get("/")
 def root():

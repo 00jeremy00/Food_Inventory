@@ -9,6 +9,7 @@ class Invoice(BaseModel):
     invoice_num: str
     invoice_date: datetime
     vendor_num: str
+    vendor_name: str
     approval_status: ApprovalStatus
     approved_by: Optional[str] = None
     approved_by_name: Optional[str] = None
