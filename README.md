@@ -26,7 +26,8 @@ Food service inventory systems are often fragmented or poorly integrated. This p
 - **MySQL**
 - **SQL** (Triggers, Views, Stored Procedures)
 - **Python** (planned for ML modeling)
-- **FastAPI** (planned API layer)
+- **FastAPI** REST API
+- **TypeScript + React** frontend
 - **Git / GitHub**
 
 ---
@@ -42,6 +43,3 @@ USE FOOD;
  ```
 ---
 
-## ER Diagram
-
-![ER Diagram](./ER_diagram.png)

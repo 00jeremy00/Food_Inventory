@@ -35,7 +35,7 @@
 
 ---
 
-### Phase 5 — Snapshot / Analytics Layer (Current)
+### Phase 5 — Snapshot / Analytics Layer (DONE)
 Tables:
 - InventorySnapshot
 - ProductSnapshot
@@ -51,20 +51,16 @@ Purpose:
 
 ---
 
-### Phase 6 — Views & Reporting
-- inventory valuation views
-- recipe usage projections
-- PrepPlan demand views
-- variance reports (expected vs actual)
-
----
-
-### Phase 7 — FastAPI Backend
+### Phase 6 — FastAPI Backend
 - endpoints for transactions, batches, snapshots
 - call stored procedures from API
 - return validation errors cleanly
 
 ---
+
+### Phase 7 — React Frontend
+- dasboard allows users to view status of database
+- allows intuitive manipulation of database for users
 
 ### Phase 8 — ML / Forecasting
 - demand prediction
