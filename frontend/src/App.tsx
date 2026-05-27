@@ -1,9 +1,9 @@
-import ProductsPage from "./pages/ProductsPage"
+import Dashboard from "./pages/Dashboard"
 
 function App() {
 
     return (
-        <ProductsPage />
+        <Dashboard/>
     )
 }
 
