@@ -1,31 +1,32 @@
 import { useEffect, useState } from "react"
-import { fetchProducts } from "../api/productsApi"
-import ProductList  from "../components/products/ProductList"
-import type {Product} from "../types/product"
+import { fetchItems } from "../api/itemsApi"
+import ItemList  from "../components/items/itemList"
+import DashboardPane from "../components/layout/dashboardPane"
+
+import type {Item} from "../types/items"
 
 function Dashboard(){
-    const [products, setProducts] = useState<Product[]>([])
+    const [items, setItems] = useState<Item[]>([])
 
     useEffect(() => {
-        async function loadProducts(){
+        async function loadItems(){
             try {
-                const data = await fetchProducts()
-                setProducts(data)
+                const data = await fetchItems()
+                setItems(data)
             }
             catch (error){
                 console.error(ErrorEvent)
             }
         }
-        loadProducts()
+        loadItems()
     } , [])
 
     return (
         <main>
             <h1> Inventory Dashboard</h1>
-            <section>
-                <h2>Products</h2>
-                <ProductList products={products}/>
-            </section>
+                <DashboardPane title="Items">
+                    <ItemList items={items}/>
+                </DashboardPane>
         </main>
     )
 }

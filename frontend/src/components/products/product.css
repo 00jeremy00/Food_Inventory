@@ -1,0 +1,9 @@
+.productCard{
+    border: black 4px solid;
+    background-color: blue;
+    border-radius: 5%;
+}
+.productCard:hover{
+    background-color: lightblue;
+    cursor: pointer;
+}   
