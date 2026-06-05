@@ -9,25 +9,40 @@ def get_all_inventory_transactions(trans_status = None, trans_type = None):
         cursor = conn.cursor(dictionary=True)
 
         query = """
-            SELECT 
-                t.transaction_num,
-                t.transaction_type,
-                t.quantity,
-                t.transaction_date,
-                t.approved_by,
-                e1.employee_name AS approver_name,
-                t.created_by,
-                e2.employee_name AS creator_name,
-                t.approval_status,
-                t.invoice_id,
-                t.product_num,
-                t.price_per_unit,
-                t.batch_num,
-                t.reason
-            FROM InventoryTransaction as t
-            LEFT JOIN Employee e1 ON t.approved_by = e1.employee_num
-            LEFT JOIN Employee e2 ON t.created_by = e2.employee_num
-            WHERE 1=1
+SELECT 
+    t.transaction_num,
+    t.transaction_type,
+    t.quantity,
+    t.transaction_date,
+
+    t.product_num,
+    p.vendor_pname,
+
+    i.internal_num,
+    i.internal_name,
+    i.internal_unit,
+
+    t.approved_by,
+    e1.employee_name AS approver_name,
+
+    t.created_by,
+    e2.employee_name AS creator_name,
+
+    t.approval_status,
+    t.invoice_id,
+    t.price_per_unit,
+    t.batch_num,
+    t.reason
+FROM InventoryTransaction AS t
+LEFT JOIN Product AS p
+    ON t.product_num = p.product_num
+LEFT JOIN Item AS i
+    ON p.internal_num = i.internal_num
+LEFT JOIN Employee AS e1
+    ON t.approved_by = e1.employee_num
+LEFT JOIN Employee AS e2
+    ON t.created_by = e2.employee_num
+WHERE 1=1
         """
         params = []
 
@@ -66,25 +81,38 @@ def get_inventory_transaction_by_num(trans_num):
         cursor = conn.cursor(dictionary=True)
 
         query = """
-            SELECT 
-                t.transaction_num,
-                t.transaction_type,
-                t.quantity,
-                t.transaction_date,
-                t.approved_by,
-                e1.employee_name AS approver_name,
-                t.created_by,
-                e2.employee_name AS creator_name,
-                t.approval_status,
-                t.invoice_id,
-                t.product_num,
-                t.price_per_unit,
-                t.batch_num,
-                t.reason
-            FROM InventoryTransaction as t
-            LEFT JOIN Employee e1 ON t.approved_by = e1.employee_num
-            LEFT JOIN Employee e2 ON t.created_by = e2.employee_num
-            WHERE t.transaction_num  = %s;
+        SELECT 
+            t.transaction_num,
+            t.transaction_type,
+            t.quantity,
+            t.transaction_date,
+            t.product_num,
+            p.vendor_pname,
+
+            i.internal_num,
+            i.internal_name,
+            i.internal_unit,
+
+            t.approved_by,
+            e1.employee_name AS approver_name,
+            t.created_by,
+            e2.employee_name AS creator_name,
+
+            t.approval_status,
+            t.invoice_id,
+            t.price_per_unit,
+            t.batch_num,
+            t.reason
+        FROM InventoryTransaction AS t
+        LEFT JOIN Product AS p
+            ON t.product_num = p.product_num
+        LEFT JOIN Item AS i
+            ON p.internal_num = i.internal_num
+        LEFT JOIN Employee AS e1
+        ON t.approved_by = e1.employee_num
+        LEFT JOIN Employee AS e2
+            ON t.created_by = e2.employee_num
+        WHERE t.transaction_num = %s;
         """
 
         cursor.execute(query, (trans_num,))

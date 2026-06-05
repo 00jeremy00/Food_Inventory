@@ -8,6 +8,7 @@ class InventoryTransaction(BaseModel):
     transaction_num: int
     transaction_type: InventoryTransactionType
     quantity: Decimal
+    internal_unit: str
     transaction_date: datetime
     approved_by: Optional[str] = None
     approver_name: Optional[str] = None
