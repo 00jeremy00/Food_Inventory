@@ -13,9 +13,11 @@ class BatchResponse(BaseModel):
     created_by: str
     created_by_name: str
     approved_by: Optional[str] = None
+    approved_by_name: Optional[str] = None
     plan_num: Optional[int] = None
     prepared_quantity: Decimal
     remaining_quantity: Decimal
+    recipe_unit: str
     depleted_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     batch_status: BatchStatus

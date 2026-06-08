@@ -9,3 +9,9 @@ export type InventoryTransactionType =
     | "WASTE"
     | "ADJUST"
     | "PREP"
+
+export type BatchStatus = 
+    | "PENIDNG"
+    | "ACTIVE"
+    | "DEPLETED"
+    | "EXPIRED"

@@ -1,5 +1,5 @@
 import type { Item } from "../../types/items"
-import "./item.css"
+//import "./item.css"
 type ItemCardProps = {
     item: Item
 }

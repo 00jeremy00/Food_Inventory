@@ -1,0 +1,16 @@
+.inventoryTransactionCard {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #f9f9f9;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.inventoryTransactionCard:hover {
+    border: 1px solid #fb0000;
+    background-color: #fff;
+    cursor: pointer
+}

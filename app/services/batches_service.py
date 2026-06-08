@@ -16,15 +16,18 @@ def get_all_batches():
                 b.created_by,
                 e.employee_name AS created_by_name,
                 b.approved_by,
+                e2.employee_name AS approved_by_name,
                 b.plan_num,
                 b.prepared_quantity,
                 b.remaining_quantity,
+                r.recipe_unit,
                 b.depleted_at,
                 b.expires_at,
                 b.batch_status
             FROM Batch b
             JOIN Recipe r ON b.recipe_num = r.recipe_num
             LEFT JOIN Employee e ON b.created_by = e.employee_num
+            LEFT JOIN Employee e2 ON b.approved_by = e2.employee_num
             ORDER BY b.created_on DESC;
             
         """
@@ -56,15 +59,18 @@ def get_batch_by_num(batch_num):
                 b.created_by,
                 e.employee_name AS created_by_name,
                 b.approved_by,
+                e2.employee_name AS approved_by_name,
                 b.plan_num,
                 b.prepared_quantity,
                 b.remaining_quantity,
+                r.recipe_unit,
                 b.depleted_at,
                 b.expires_at,
                 b.batch_status
             FROM Batch b
             JOIN Recipe r ON b.recipe_num = r.recipe_num
             LEFT JOIN Employee e ON b.created_by = e.employee_num
+            LEFT JOIN Employee e2 ON b.approved_by = e2.employee_num
             WHERE b.batch_num = %s;
         """
         cursor.execute(query, (batch_num,))

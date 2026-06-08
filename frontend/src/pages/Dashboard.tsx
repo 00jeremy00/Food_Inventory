@@ -1,16 +1,24 @@
 import { useEffect, useState } from "react"
-import { fetchItems } from "../api/itemsApi"
-import ItemList  from "../components/items/itemList"
 import DashboardPane from "../components/layout/dashboardPane"
+
+import { fetchInventoryTransactions } from "../api/inventoryTransactionsApi"
+import { fetchItems } from "../api/itemsApi"
+import { fetch_batches } from "../api/batchApi"
 
 import type {Item} from "../types/items"
 import type { InventoryTransaction } from "../types/inventoryTransaction"
+import type { Batch } from "../types/batches"
+
 import InventoryTransactionList from "../components/inventory_transactions/inventoryTransactionList"
-import { fetchInventoryTransactions } from "../api/inventoryTransactionsApi"
+import ItemList  from "../components/items/itemList"
+import BatchList from "../components/batches/batchList"
+
+import "../styles/dashboard.css"
 
 function Dashboard(){
     const [items, setItems] = useState<Item[]>([])
     const [inventoryTransactions, setInventoryTransactions] = useState<InventoryTransaction[]>([])
+    const [batches, setBatches] = useState<Batch[]>([])
 
     useEffect(() => {
         async function loadItems(){
@@ -31,8 +39,19 @@ function Dashboard(){
                 console.error(error)
             }
         }
+
+        async function loadBatches() {
+            try {
+                const data = await fetch_batches()
+                setBatches(data)
+            } catch (error) {
+                console.error(error)
+            }
+        }
+
         loadItems()
         loadInventoryTransactions()
+        loadBatches()
     } , [])
 
     return (
@@ -44,6 +63,9 @@ function Dashboard(){
                 </DashboardPane>
                 <DashboardPane title="Inventory Transactions">
                     <InventoryTransactionList transaction_list={inventoryTransactions}/> 
+                </DashboardPane>
+                <DashboardPane title="Batches">
+                    <BatchList batches={batches}/>
                 </DashboardPane>
             </div>
         </main>
