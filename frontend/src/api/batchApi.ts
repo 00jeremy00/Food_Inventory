@@ -1,10 +1,10 @@
-import {API_URL} from"./config"
+import { apiGet } from "./apiClient"   
+import type { Batch } from "../types/batches"
 
-export async function fetch_batches(){
-    const response = await fetch(`${API_URL}/batches/`)
-    if(!response.ok){
-        throw new Error('Batches could not be fetched')
-    }
-    return response.json()
+type BatchFilters = {
+    status?: string
 }
- 
+
+export function fetchBatches(filters?: BatchFilters) {
+    return apiGet<Batch[]>("/batches/", filters)
+}

@@ -3,7 +3,7 @@ import DashboardPane from "../components/layout/dashboardPane"
 
 import { fetchInventoryTransactions } from "../api/inventoryTransactionsApi"
 import { fetchItems } from "../api/itemsApi"
-import { fetch_batches } from "../api/batchApi"
+import { fetchBatches } from "../api/batchApi"
 
 import type {Item} from "../types/items"
 import type { InventoryTransaction } from "../types/inventoryTransaction"
@@ -42,7 +42,7 @@ function Dashboard(){
 
         async function loadBatches() {
             try {
-                const data = await fetch_batches()
+                const data = await fetchBatches({status: 'PENDING'})
                 setBatches(data)
             } catch (error) {
                 console.error(error)
@@ -64,10 +64,21 @@ function Dashboard(){
                 <DashboardPane title="Inventory Transactions">
                     <InventoryTransactionList transaction_list={inventoryTransactions}/> 
                 </DashboardPane>
-                <DashboardPane title="Batches">
+                <DashboardPane  title="Batches">
                     <BatchList batches={batches}/>
                 </DashboardPane>
             </div>
+            <ul>
+                <li>a</li>
+                <li>b</li>
+                <li>c</li> 
+                <li>a</li>
+                <li>b</li>
+                <li>c</li> 
+                <li>a</li>
+                <li>b</li>
+                <li>c</li> 
+            </ul>
         </main>
     )
 }

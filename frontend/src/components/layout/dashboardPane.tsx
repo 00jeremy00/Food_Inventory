@@ -5,8 +5,10 @@ type DashboardPaneProps = {
 
 function DashboardPane({ title, children }: DashboardPaneProps) {
     return (
-        <section className="dashboard-pane">
+        <section className="dashboardPane">
+            <div className="dashboardHeader">
             <h2>{title}</h2>
+            </div>
             <div className="dashboard-pane-content">
                 {children}
             </div>
