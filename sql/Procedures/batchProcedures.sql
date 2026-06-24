@@ -16,7 +16,8 @@ CREATE PROCEDURE addRecipe(
 	IN new_recipe_name VARCHAR(64),
     IN shelf_life_hour DECIMAL(10,3),
     IN recipe_yield DECIMAL(10,3),
-    IN new_unit VARCHAR(20)
+    IN new_unit VARCHAR(20),
+    IN new_par DECIMAL(10,3)
 )
 BEGIN
 	-- validates recipe name
@@ -33,6 +34,10 @@ BEGIN
 	ELSEIF new_unit IS NULL OR TRIM(new_unit) = '' THEN
 		SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'addRecipe [E04]: recipe unit is NULL';
+	
+    ELSEIF new_par IS NULL OR new_par < 0 THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'addRecipe [E05]: recipe par must be non-negative';
 	END IF;
     
     
@@ -41,13 +46,15 @@ BEGIN
         recipe_status,
         shelflife,
         yield,
-        recipe_unit
+        recipe_unit,
+        par
 	) VALUES(
        TRIM(new_recipe_name),
        'PENDING',
        shelf_life_hour,
        recipe_yield,
-       new_unit
+       new_unit,
+       new_par
 	);
     
 END $$

@@ -11,7 +11,7 @@ export type InventoryTransactionType =
     | "PREP"
 
 export type BatchStatus = 
-    | "PENIDNG"
+    | "PENDING"
     | "ACTIVE"
     | "DEPLETED"
     | "EXPIRED"

@@ -15,7 +15,8 @@ def get_all_recipes():
                 recipe_status,
                 shelflife,
                 yield,
-                recipe_unit
+                recipe_unit,
+                par
             FROM Recipe
             ORDER BY recipe_num;"""
         

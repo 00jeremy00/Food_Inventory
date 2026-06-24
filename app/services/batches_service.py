@@ -1,5 +1,5 @@
 from app.database import get_connection
-def get_all_batches():
+def get_all_batches(batch_status=None):
     conn = None
     cursor = None
 
@@ -23,16 +23,24 @@ def get_all_batches():
                 r.recipe_unit,
                 b.depleted_at,
                 b.expires_at,
-                b.batch_status
+                b.batch_status,
+                r.par
             FROM Batch b
             JOIN Recipe r ON b.recipe_num = r.recipe_num
             LEFT JOIN Employee e ON b.created_by = e.employee_num
             LEFT JOIN Employee e2 ON b.approved_by = e2.employee_num
+        """
+        params = []
+
+        if batch_status:
+            query += " WHERE b.batch_status = %s"
+            params.append(batch_status.value)
+
+        query += """
             ORDER BY b.created_on DESC;
-            
         """
 
-        cursor.execute(query)
+        cursor.execute(query, params)
 
         return cursor.fetchall()
     finally:
@@ -67,6 +75,7 @@ def get_batch_by_num(batch_num):
                 b.depleted_at,
                 b.expires_at,
                 b.batch_status
+                r.par
             FROM Batch b
             JOIN Recipe r ON b.recipe_num = r.recipe_num
             LEFT JOIN Employee e ON b.created_by = e.employee_num
@@ -104,7 +113,8 @@ def get_active_batches():
                 b.remaining_quantity,
                 b.depleted_at,
                 b.expires_at,
-                b.batch_status
+                b.batch_status,
+                r.par
             FROM Batch b
             JOIN Recipe AS r ON b.recipe_num = r.recipe_num
             LEFT JOIN Employee AS e ON b.created_by = e.employee_num
@@ -142,7 +152,8 @@ def get_pending_batches():
                 b.remaining_quantity,
                 b.depleted_at,
                 b.expires_at,
-                b.batch_status
+                b.batch_status,
+                r.par
             FROM Batch b
             JOIN Recipe AS r ON b.recipe_num = r.recipe_num
             LEFT JOIN Employee AS e ON b.created_by = e.employee_num

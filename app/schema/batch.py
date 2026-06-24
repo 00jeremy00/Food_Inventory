@@ -21,3 +21,4 @@ class BatchResponse(BaseModel):
     depleted_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     batch_status: BatchStatus
+    par: Decimal

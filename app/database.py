@@ -9,5 +9,6 @@ def get_connection():
         password=DB_CONFIG["password"],
         database=DB_CONFIG["database"],
         unix_socket="/var/run/mysqld/mysqld.sock",
-        autocommit=False
+        autocommit=False,
+        use_pure=True
     )

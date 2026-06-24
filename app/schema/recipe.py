@@ -9,3 +9,4 @@ class Recipe(BaseModel):
     shelflife: Decimal
     recipe_yield: Decimal
     recipe_unit: str
+    par: Decimal

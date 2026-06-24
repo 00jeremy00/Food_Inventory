@@ -14,6 +14,16 @@ def read_inventory_transactions(
 ):
     return get_all_inventory_transactions(trans_status, transaction_type)
 
+@router.post('/{trans_num}/approve')
+def approve_inventory_transaction(
+    trans_num: int,
+    approver_num: str
+):
+    approve_inventory_transaction(
+        trans_num,
+        approver_num
+    )
+
 @router.get('/{trans_num}', response_model=InventoryTransaction)
 def read_inventory_transaction_by_num(trans_num: int):
     transaction = get_inventory_transaction_by_num(trans_num)

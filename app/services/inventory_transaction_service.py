@@ -128,3 +128,34 @@ def get_inventory_transaction_by_num(trans_num):
 
     return result
 
+def approve_inventory_transaction(trans_num, approver_num):
+    conn = None
+    cursor = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        manager_found = cursor.execute("SELECT * FROM Employee WHERE employee_num = %s AND is_manager = TRUE", (approver_num,))
+
+        if not manager_found:
+            raise Exception("Approver is not a manager.")
+        
+        update_query = """
+        UPDATE InventoryTransaction
+        SET approval_status = 'APPROVED', approved_by = %s
+        WHERE transaction_num = %s;
+        """
+
+        cursor.execute(update_query, (approver_num, trans_num))
+        conn.commit()
+    except Exception as e:
+        print(f"Error occurred while approving inventory transaction: {e}")
+        if conn:
+            conn.rollback()
+        raise e
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()

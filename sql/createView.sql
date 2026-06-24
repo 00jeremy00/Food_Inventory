@@ -5,7 +5,8 @@ SELECT
     i.category,
     i.internal_unit,
     CAST(COALESCE(SUM(pi.quantity), 0) AS DECIMAL(10,3)) AS total_quantity,
-	CAST(COALESCE(SUM(pi.quantity * (p.price / p.conversion_factor)), 0) AS DECIMAL(10,2)) AS total_value
+	CAST(COALESCE(SUM(pi.quantity * (p.price / p.conversion_factor)), 0) AS DECIMAL(10,2)) AS total_value,
+    i.par
 FROM Product p JOIN Item i
     ON p.internal_num = i.internal_num
 LEFT JOIN ProductInventory pi 

@@ -5,9 +5,18 @@ type ItemCardProps = {
 }
 
 function ItemCard({ item }: ItemCardProps) {
+    const isLowStock =
+        Number(item.total_quantity) <=
+        Number(item.par)
+
+    const headerClass = isLowStock
+        ? "headerRed"
+        : "headerGreen"
     return (
         <div className = "itemCard">
-            <h3>{item.internal_num}: {item.internal_name}</h3>
+            <div className={`cardHeader ${headerClass}`}>
+                <h3>{item.internal_num}: {item.internal_name}</h3>
+            </div>
             <p>{item.category}</p>
             <p>{item.total_quantity} {item.internal_unit}</p>
             <p>${item.total_value}</p>

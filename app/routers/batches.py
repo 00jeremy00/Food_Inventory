@@ -1,4 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Query
+from app.enums import BatchStatus
 from app.schema.batch import BatchResponse
 from app.services.batches_service import get_all_batches, get_batch_by_num, get_active_batches, get_pending_batches
 
@@ -8,8 +11,8 @@ router = APIRouter(
 )
 
 @router.get('/', response_model=list[BatchResponse])
-def read_batches():
-    return get_all_batches()
+def read_batches(status: Optional[BatchStatus] = Query(None)):
+    return get_all_batches(status)
 
 @router.get('/active', response_model=list[BatchResponse])
 def read_active_batches():

@@ -9,3 +9,4 @@ class ItemResponse(BaseModel):
     internal_unit: str
     total_quantity: Decimal
     total_value: Decimal
+    par: Decimal

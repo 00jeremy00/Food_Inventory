@@ -1,14 +1,4 @@
-/*body {
-    margin: 0;
 
-    background:
-        repeating-conic-gradient(
-            #f4f4f4ce 0% 25%,
-            #ef8383 0% 50%
-        )
-        0 0 / 300px 300px;
-}
-        */
 
 .dashboardGrid {
     display: grid;
@@ -25,7 +15,7 @@
     border-radius: 12px;
     background:
         repeating-conic-gradient(
-            #f6d4d4ce 0% 25%,
+            #000000ce 0% 25%,
             #df3c3c 0% 50%
         )
         0 0 / 100px 100px;
@@ -33,7 +23,9 @@
 }
 
 .dashboardHeader {
-    background-color: #ffffff;
+    position: sticky;
+    top: 0;
+    background-color: #df3c3c;
     color: rgb(0, 0, 0);
     padding: 0.5rem;
     border-radius: 10px 10px 0 0;
@@ -44,22 +36,41 @@
 .itemCard,
 .inventoryTransactionCard,
 .batchCard {
-    background-color: rgb(255, 255, 255);
+    background-color: black;
     border-radius: 10px;
     border: 1px #df3c3c solid;
     padding: 0rem;
     margin: 1rem;
-    color: #000000;
+    color: #ffffff;
     overflow: hidden;
 }
 
 .cardHeader{
     background-color: green;
     margin: 0rem;
-    height: 3rem;
+    height: 100%;
     font-size: 2rem;
+    padding: 0rem;
+
 }
 
 .cardHeader h3{
-    margin: 0px;
+    margin: 0rem;
+    padding: 0.5rem;
+    font-size: 1.5rem;}
+
+.headerGreen {
+    background-color: rgb(43, 133, 43);
+}
+
+.headerRed {
+    background-color: #db2424;
+}
+.approveTransButton {
+    background-color: #df3c3c;
+    color: white;
+    border: none;
+    padding: 0.5rem;
+    cursor: pointer;
+    border-radius: 1rem;
 }

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS Item(
 	internal_num VARCHAR(20) PRIMARY KEY,
     internal_name VARCHAR(64) NOT NULL,
     category VARCHAR(64) NOT NULL,
+    par DECIMAL(10,3) NOT NULL,
     internal_unit VARCHAR(20) NOT NULL,
     FOREIGN KEY (category) REFERENCES Category(category_name)
 );
@@ -77,7 +78,8 @@ CREATE TABLE IF NOT EXISTS Recipe(
     recipe_status ENUM('PENDING', 'ACTIVE', 'INACTIVE') DEFAULT 'PENDING',
     shelflife DECIMAL(10,3) NOT NULL,
     yield DECIMAL(10,3) NOT NULL,
-    recipe_unit VARCHAR(20),
+    recipe_unit VARCHAR(20) NOT NULL,
+    par DECIMAL(10,3) NOT NULL,
     CONSTRAINT valid_recipe_status CHECK (recipe_status IN ('PENDING', 'ACTIVE', 'INACTIVE')),
     CONSTRAINT shelflife_positive CHECK (shelflife > 0)
 );

@@ -40,9 +40,9 @@ function Dashboard(){
             }
         }
 
-        async function loadBatches() {
+        async function loadActiveBatches() {
             try {
-                const data = await fetchBatches({status: 'PENDING'})
+                const data = await fetchBatches({status: 'ACTIVE'})
                 setBatches(data)
             } catch (error) {
                 console.error(error)
@@ -51,7 +51,7 @@ function Dashboard(){
 
         loadItems()
         loadInventoryTransactions()
-        loadBatches()
+        loadActiveBatches()
     } , [])
 
     return (

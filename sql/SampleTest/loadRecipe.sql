@@ -1,4 +1,4 @@
-CALL addRecipe("Cheese-Burger", 4, 1, "count");
+CALL addRecipe("Cheese-Burger", 4, 1, "count", 4);
 CALL addIngredient("000002", 1, 1);					-- adds cheese as ingredient
 CALL addIngredient("000003", 1, .01);				-- ketchup
 CALL addIngredient("000007", 1, .01);				-- pickles
@@ -10,7 +10,7 @@ UPDATE Recipe										-- activates cheesburger recipe
 SET recipe_status = 'ACTIVE'
 WHERE recipe_num = 1;
 
-CALL addRecipe("Loaded Fry", .5, 4, "oz");
+CALL addRecipe("Loaded Fry", .5, 4, "oz", 1);
 CALL addIngredient("000001", 2, .25);				-- fries
 CALL addIngredient("000017", 2, .1);				-- bacon
 CALL addIngredient("000003", 2, .01);				-- ketchup
@@ -22,7 +22,7 @@ UPDATE Recipe										-- activates loaded fry recipe
 SET recipe_status = 'ACTIVE'
 WHERE recipe_num = 2;
 
-CALL addRecipe("Chicken Basket", 4, 1, "count");
+CALL addRecipe("Chicken Basket", 4, 1, "count", 4);
 CALL addIngredient("000001", 3, .25);				-- fries
 CALL addIngredient("000018", 3, .5);				-- chicken nuggets
 CALL addIngredient("000020", 3, .01);				-- BBQ sauce

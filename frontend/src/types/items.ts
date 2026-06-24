@@ -5,4 +5,5 @@ export type Item = {
     internal_unit: string
     total_quantity: string
     total_value: string
+    par: string
 }
